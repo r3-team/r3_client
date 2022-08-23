@@ -83,7 +83,7 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 
 			// correct file version is already available, just open it
 			log.Info(logContext, "already has the correct file version available, opens it")
-			return openWithLocalSystem(filePath, chooseApp)
+			return OpenWithLocalSystem(filePath, chooseApp)
 		} else {
 			// file exists but is outdated, remove it
 			if err := os.Remove(filePath); err != nil {
@@ -122,10 +122,10 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 	if err := CacheStore(); err != nil {
 		return err
 	}
-	return openWithLocalSystem(filePath, chooseApp)
+	return OpenWithLocalSystem(filePath, chooseApp)
 }
 
-func openWithLocalSystem(filePath string, chooseApp bool) error {
+func OpenWithLocalSystem(filePath string, chooseApp bool) error {
 	if chooseApp {
 		return choose_app.Open(filePath)
 	}

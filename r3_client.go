@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"runtime"
 
@@ -13,13 +12,19 @@ import (
 	"r3_client/job"
 	"r3_client/log"
 	"r3_client/tools"
+	"r3_client/tray"
 	"r3_client/websocket"
+
+	"fyne.io/systray"
 )
 
 var logContext = "system"
 
 func main() {
+	systray.Run(onReady, onExit)
+}
 
+func onReady() {
 	// get user home dir
 	userDir, err := os.UserHomeDir()
 	if err != nil {
@@ -55,7 +60,8 @@ func main() {
 	}
 
 	// define paths
-	config.SetFilePath(filepath.Join(appDir, "config.json"))
+	config.SetPathApp(appDir)
+	config.SetPathUser(userDir)
 	file.SetFilePathCache(filepath.Join(appDir, "files.json"))
 	log.SetFilePath(filepath.Join(appDir, "client.log"))
 
@@ -66,13 +72,16 @@ func main() {
 	}
 
 	// apply logging settings from config file
-	log.SetLevel(config.File.LogLevel)
+	log.SetDebug(config.File.Debug)
 
 	// install application
-	if err := install.Do(userDir, appDir, config.File.AutoStart); err != nil {
+	if err := install.App(); err != nil {
 		log.Error(logContext, "failed to install application", err)
 		return
 	}
+
+	// fill system tray
+	tray.Fill()
 
 	// prepare websocket client
 	wsScheme := "wss"
@@ -83,14 +92,12 @@ func main() {
 		wsScheme, config.File.HostName, config.File.HostPort))
 
 	go websocket.HandleReceived()
-	defer websocket.Disconnect()
 
 	// start file system watcher
 	if err := file.WatcherStart(); err != nil {
 		log.Error(logContext, "failed to start file system watcher", err)
 		return
 	}
-	defer file.WatcherStop()
 
 	// restore handled files from cache
 	if err := file.CacheRestore(); err != nil {
@@ -100,14 +107,10 @@ func main() {
 
 	// start regular jobs
 	go job.Start()
-	defer job.Stop()
+}
 
-	// block until interrupted
-	osExit := make(chan os.Signal)
-	signal.Notify(osExit, os.Interrupt)
-	for {
-		select {
-		case <-osExit:
-		}
-	}
+func onExit() {
+	job.Stop()
+	file.WatcherStop()
+	websocket.Disconnect(true)
 }

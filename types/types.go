@@ -16,11 +16,12 @@ type FilesSaved struct {
 
 // configuration file
 type ConfigFile struct {
-	AutoStart  bool   `json:"autoStart"`
-	HostName   string `json:"hostName"`
-	HostPort   int    `json:"hostPort"`
-	LogLevel   int    `json:"logLevel"`
-	LoginId    int64  `json:"loginId"`
-	Ssl        bool   `json:"ssl"`
-	TokenFixed string `json:"tokenFixed"`
+	AutoStart    bool   `json:"autoStart"`
+	Debug        bool   `json:"debug"`
+	HostName     string `json:"hostName"`
+	HostPort     int    `json:"hostPort"`
+	LanguageCode string `json:"languageCode"`
+	LoginId      int64  `json:"loginId"`
+	Ssl          bool   `json:"ssl"`
+	TokenFixed   string `json:"tokenFixed"`
 }

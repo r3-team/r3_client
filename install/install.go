@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"r3_client/config"
 	"r3_client/log"
 	"r3_client/tools"
 )
@@ -12,11 +13,11 @@ var (
 	logContext = "installer"
 )
 
-func Do(userDir string, appDir string, autoStart bool) error {
+func App() error {
 
 	// get OS dependent paths
-	filePathBin := getFilePathBin(appDir)
-	filePathLnk := getFilePathLnk(userDir)
+	filePathBin := getFilePathBin(config.GetPathApp())
+	filePathLnk := getFilePathLnk(config.GetPathUser())
 
 	// install app to user application directory if not there already
 	exists, err := tools.Exists(filePathBin)
@@ -42,14 +43,14 @@ func Do(userDir string, appDir string, autoStart bool) error {
 		return err
 	}
 
-	if autoStart && !exists {
+	if config.File.AutoStart && !exists {
 		// copy link to binary to startup folder
 		log.Info(logContext, fmt.Sprintf("is setting auto start link file at '%s'",
 			filePathLnk))
 
 		return createLnk(filePathLnk, filePathBin)
 	}
-	if !autoStart && exists {
+	if !config.File.AutoStart && exists {
 		// remove link to binary from startup folder
 		log.Info(logContext, fmt.Sprintf("is removing auto start link file at '%s'",
 			filePathLnk))

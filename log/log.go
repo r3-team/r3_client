@@ -8,12 +8,16 @@ import (
 )
 
 var (
+	debug           = false
 	fileMaxSizeKb   = 10240 // log file max size before rotate in kilobytes
 	filePath        = ""    // log file path
 	filePathRotated string  // log file path, rotated
 	level           = 1     // log level (1 error, 2 warning, 3 info)
 )
 
+func SetDebug(v bool) {
+	debug = v
+}
 func SetFilePath(v string) {
 	filePath = v
 	filePathRotated = fmt.Sprintf("%s.1", v)
@@ -61,7 +65,7 @@ func Error(context string, message string, err error) {
 
 func write(levelRequested int, context string, message string, err error, writeToFile bool) {
 
-	if levelRequested > level {
+	if levelRequested != 1 && !debug {
 		return
 	}
 
@@ -79,7 +83,7 @@ func write(levelRequested int, context string, message string, err error, writeT
 	fmt.Print(message)
 
 	// log to file if set
-	if filePath != "" {
+	if writeToFile && filePath != "" {
 		f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			write(1, "log", "failed to open log file", err, false)

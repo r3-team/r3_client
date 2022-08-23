@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"r3_client/tools"
@@ -11,9 +12,10 @@ import (
 
 var (
 	access_mx   = &sync.Mutex{}
-	filePath    string // config file path
-	pathHomedir string
 	authToken   string // authentication JWT
+	pathApp     string // application path
+	pathUser    string // user home path
+	pathHomedir string
 
 	File types.ConfigFile
 )
@@ -24,28 +26,39 @@ func GetIsAuthenticated() bool {
 func GetAuthToken() string {
 	return authToken
 }
+func GetPathApp() string {
+	return pathApp
+}
+func GetPathUser() string {
+	return pathUser
+}
 func SetAuthToken(v string) {
 	authToken = v
 }
-func SetFilePath(v string) {
-	filePath = v
+func SetPathApp(v string) {
+	pathApp = v
+}
+func SetPathUser(v string) {
+	pathUser = v
 }
 func LoadCreateFile() error {
 
 	// create new config file with defaults if it does not exist
+	filePath := filepath.Join(pathApp, "config.json")
 	exists, err := tools.Exists(filePath)
 	if err != nil {
 		return err
 	}
 	if !exists {
 		File = types.ConfigFile{
-			AutoStart:  true,
-			HostName:   "SERVER_HOSTNAME",
-			HostPort:   443,
-			LogLevel:   1,
-			LoginId:    -1,
-			Ssl:        true,
-			TokenFixed: "LOGIN_APP_TOKEN",
+			AutoStart:    true,
+			Debug:        false,
+			HostName:     "SERVER_HOSTNAME",
+			HostPort:     443,
+			LanguageCode: "en_us",
+			LoginId:      -1,
+			Ssl:          true,
+			TokenFixed:   "LOGIN_APP_TOKEN",
 		}
 		if err := WriteFile(); err != nil {
 			return err
@@ -62,10 +75,7 @@ func LoadCreateFile() error {
 	configJson = tools.RemoveUtf8Bom(configJson)
 
 	// unmarshal configuration JSON content
-	if err := json.Unmarshal(configJson, &File); err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal(configJson, &File)
 }
 func WriteFile() error {
 	access_mx.Lock()
@@ -78,8 +88,5 @@ func WriteFile() error {
 	}
 
 	// write configuration to JSON file
-	if err := os.WriteFile(filePath, json, 0644); err != nil {
-		return err
-	}
-	return nil
+	return os.WriteFile(filepath.Join(pathApp, "config.json"), json, 0644)
 }

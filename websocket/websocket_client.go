@@ -10,6 +10,7 @@ import (
 	"r3_client/file"
 	"r3_client/log"
 	"r3_client/tools"
+	"r3_client/tray"
 	"r3_client/types"
 
 	"github.com/gorilla/websocket"
@@ -33,16 +34,24 @@ func Connect() error {
 
 	var err error
 	conn, _, err = websocket.DefaultDialer.Dial(serverUrl, nil)
-	return err
+	if err != nil {
+		return err
+	}
+	tray.SetConnected(true)
+	return nil
 }
-func Disconnect() {
+func Disconnect(shuttingDown bool) {
 	if conn != nil {
 		conn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 
 		conn.Close()
 		conn = nil
-		config.SetAuthToken("")
+
+		if !shuttingDown {
+			config.SetAuthToken("")
+			tray.SetConnected(false)
+		}
 	}
 }
 
@@ -56,7 +65,7 @@ func HandleReceived() {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Error(logContext, "failed to read message", err)
-			Disconnect()
+			Disconnect(false)
 			continue
 		}
 		log.Info(logContext, fmt.Sprintf("received: %s", message))
