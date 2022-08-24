@@ -69,6 +69,8 @@ var (
 	mFile0   *systray.MenuItem
 	mFile1   *systray.MenuItem
 	mFile2   *systray.MenuItem
+	mFile3   *systray.MenuItem
+	mFile4   *systray.MenuItem
 	mConfig  *systray.MenuItem
 	mLogs    *systray.MenuItem
 	mStartup *systray.MenuItem
@@ -94,9 +96,13 @@ func Fill() {
 	mFile0 = systray.AddMenuItem("-", "")
 	mFile1 = systray.AddMenuItem("-", "")
 	mFile2 = systray.AddMenuItem("-", "")
+	mFile3 = systray.AddMenuItem("-", "")
+	mFile4 = systray.AddMenuItem("-", "")
 	mFile0.Hide()
 	mFile1.Hide()
 	mFile2.Hide()
+	mFile3.Hide()
+	mFile4.Hide()
 	systray.AddSeparator()
 	mConfig = systray.AddMenuItem(items["config"][lang], "")
 	mLogs = systray.AddMenuItem(items["logs"][lang], "")
@@ -118,6 +124,10 @@ func Fill() {
 				openFile(1)
 			case <-mFile2.ClickedCh:
 				openFile(2)
+			case <-mFile3.ClickedCh:
+				openFile(3)
+			case <-mFile4.ClickedCh:
+				openFile(4)
 			case <-mConfig.ClickedCh:
 				open.WithLocalSystem(filepath.Join(config.GetPathApp(), "config.json"), false)
 			case <-mLogs.ClickedCh:
@@ -189,7 +199,19 @@ func SetFiles(files []types.File) {
 		case 2:
 			mFile2.SetTitle(f.FileName)
 			mFile2.Show()
+		case 3:
+			mFile3.SetTitle(f.FileName)
+			mFile3.Show()
+		case 4:
+			mFile4.SetTitle(f.FileName)
+			mFile4.Show()
 		}
+	}
+	if len(files) < 5 {
+		mFile4.Hide()
+	}
+	if len(files) < 4 {
+		mFile3.Hide()
 	}
 	if len(files) < 3 {
 		mFile2.Hide()

@@ -23,10 +23,18 @@ var (
 	tempDir         = ""    // from OS
 	tempDirAttempts = 1000  // how many attempts to create file temp directory
 	tempDirPrefix   = "r3_" // directory prefix
+	trayFileCnt     = 5     // number of last accessed files, shown in system tray
 )
 
 func init() {
 	tempDir = os.TempDir()
+}
+
+func GetDirPath(dirName string) string {
+	return filepath.Join(tempDir, dirName)
+}
+func GetFilePath(dirName string, fileName string) string {
+	return filepath.Join(tempDir, dirName, fileName)
 }
 
 func Open(attributeId uuid.UUID, fileId uuid.UUID,
@@ -41,7 +49,7 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 
 	if exists {
 		// file reference exists, check for file as well
-		exists, err = tools.Exists(filepath.Join(tempDir, f.DirName, f.FileName))
+		exists, err = tools.Exists(GetFilePath(f.DirName, f.FileName))
 		if err != nil {
 			log.Error(logContext, "failed to check file", err)
 			return err
@@ -69,15 +77,17 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 		}
 
 		if dirName == "" {
-			return fmt.Errorf("failed to create temporary directory after %d attempts", tempDirAttempts)
+			return fmt.Errorf("failed to create temporary directory after %d attempts",
+				tempDirAttempts)
 		}
 
 		f.AttributeId = attributeId
 		f.DirName = dirName
 		f.FileHash = fileHash
 		f.FileName = fileName
+		f.Touched = tools.GetTimeUnix()
 	}
-	filePath := filepath.Join(tempDir, f.DirName, f.FileName)
+	filePath := GetFilePath(f.DirName, f.FileName)
 
 	if exists {
 		if f.FileHash == fileHash {
@@ -151,7 +161,7 @@ func updateTray() {
 	})
 
 	filesShow := make([]types.File, 0)
-	for i := 0; i < 3 && i < len(keys); i++ {
+	for i := 0; i < trayFileCnt && i < len(keys); i++ {
 		filesShow = append(filesShow, files[keys[i]])
 	}
 	tray.SetFiles(filesShow)

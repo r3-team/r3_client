@@ -21,6 +21,7 @@ type ConfigFile struct {
 	DeviceName   string `json:"deviceName"`
 	HostName     string `json:"hostName"`
 	HostPort     int    `json:"hostPort"`
+	KeepFilesSec int64  `json:"keepFilesSec`
 	LanguageCode string `json:"languageCode"`
 	LoginId      int64  `json:"loginId"`
 	Ssl          bool   `json:"ssl"`

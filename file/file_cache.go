@@ -3,7 +3,6 @@ package file
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"r3_client/log"
 	"r3_client/tools"
 	"r3_client/types"
@@ -53,7 +52,7 @@ func CacheRestore() error {
 	files_mx.Lock()
 	files = cache.Files
 	for _, f := range files {
-		if err := watcherAdd(filepath.Join(tempDir, f.DirName)); err != nil {
+		if err := watcherAdd(GetDirPath(f.DirName)); err != nil {
 			log.Error(logContext, "failed to add file path to watcher", err)
 			continue
 		}

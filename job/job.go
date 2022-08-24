@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"r3_client/call"
+	"r3_client/file"
 	"r3_client/log"
 	"r3_client/websocket"
 )
@@ -25,6 +26,11 @@ var (
 		intervalSec: 86400,
 		lastRan:     -1,
 		logName:     "logRotate",
+	}, job{
+		fn:          file.CleanupFiles,
+		intervalSec: 86400,
+		lastRan:     -1,
+		logName:     "cleanupOutdatedFiles",
 	}, job{
 		fn:          websocket.Connect,
 		intervalSec: 5,
