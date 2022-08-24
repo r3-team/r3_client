@@ -3,14 +3,14 @@ package file
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"r3_client/config"
-	"r3_client/file/choose_app"
+	"r3_client/file/open"
 	"r3_client/log"
 	"r3_client/tools"
+	"r3_client/tray"
 	"r3_client/types"
-	"runtime"
+	"sort"
 	"sync"
 
 	"github.com/gofrs/uuid"
@@ -33,6 +33,7 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 	fileHash string, fileName string, chooseApp bool) error {
 
 	var err error
+	defer updateTouched(fileId)
 
 	files_mx.Lock()
 	f, exists := files[fileId]
@@ -83,7 +84,7 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 
 			// correct file version is already available, just open it
 			log.Info(logContext, "already has the correct file version available, opens it")
-			return OpenWithLocalSystem(filePath, chooseApp)
+			return open.WithLocalSystem(filePath, chooseApp)
 		} else {
 			// file exists but is outdated, remove it
 			if err := os.Remove(filePath); err != nil {
@@ -122,24 +123,36 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 	if err := CacheStore(); err != nil {
 		return err
 	}
-	return OpenWithLocalSystem(filePath, chooseApp)
+	return open.WithLocalSystem(filePath, chooseApp)
 }
 
-func OpenWithLocalSystem(filePath string, chooseApp bool) error {
-	if chooseApp {
-		return choose_app.Open(filePath)
+func updateTouched(fileId uuid.UUID) {
+	files_mx.Lock()
+	if f, exists := files[fileId]; exists {
+		f.Touched = tools.GetTimeUnix()
+		files[fileId] = f
+	}
+	files_mx.Unlock()
+	updateTray()
+}
+
+func updateTray() {
+	files_mx.Lock()
+	defer files_mx.Unlock()
+
+	// show latest 3 touched files in systray
+	keys := make([]uuid.UUID, 0, len(files))
+	for k := range files {
+		keys = append(keys, k)
 	}
 
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", filePath)
-	case "linux":
-		cmd = exec.Command("xdg-open", filePath)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", filePath)
-	default:
-		return fmt.Errorf("unsupported runtime environment '%v'", runtime.GOOS)
+	sort.SliceStable(keys, func(i, j int) bool {
+		return files[keys[i]].Touched > files[keys[j]].Touched
+	})
+
+	filesShow := make([]types.File, 0)
+	for i := 0; i < 3 && i < len(keys); i++ {
+		filesShow = append(filesShow, files[keys[i]])
 	}
-	return cmd.Run()
+	tray.SetFiles(filesShow)
 }

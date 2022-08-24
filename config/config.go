@@ -53,6 +53,7 @@ func LoadCreateFile() error {
 		File = types.ConfigFile{
 			AutoStart:    true,
 			Debug:        false,
+			DeviceName:   "DEVICE_NAME",
 			HostName:     "SERVER_HOSTNAME",
 			HostPort:     443,
 			LanguageCode: "en_us",

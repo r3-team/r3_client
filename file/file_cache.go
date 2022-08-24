@@ -52,12 +52,14 @@ func CacheRestore() error {
 
 	files_mx.Lock()
 	files = cache.Files
-	defer files_mx.Unlock()
 	for _, f := range files {
 		if err := watcherAdd(filepath.Join(tempDir, f.DirName)); err != nil {
 			log.Error(logContext, "failed to add file path to watcher", err)
 			continue
 		}
 	}
+	files_mx.Unlock()
+
+	updateTray()
 	return nil
 }

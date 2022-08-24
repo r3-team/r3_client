@@ -8,7 +8,7 @@ type File struct {
 	DirName     string    `json:"dirName"`     // file directory name, inside temp directory
 	FileHash    string    `json:"fileHash"`    // known file hash (to check for changes)
 	FileName    string    `json:"fileName"`    // file name
-	Version     int       `json:"version"`     // file version
+	Touched     int64     `json:"touched"`     // unix timestamp of last time file was touched
 }
 type FilesSaved struct {
 	Files map[uuid.UUID]File `json:"files"`
@@ -18,6 +18,7 @@ type FilesSaved struct {
 type ConfigFile struct {
 	AutoStart    bool   `json:"autoStart"`
 	Debug        bool   `json:"debug"`
+	DeviceName   string `json:"deviceName"`
 	HostName     string `json:"hostName"`
 	HostPort     int    `json:"hostPort"`
 	LanguageCode string `json:"languageCode"`
