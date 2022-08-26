@@ -22,9 +22,12 @@ type menuItem struct {
 }
 
 var (
-	filesShow  []types.File // last accessed files in order
-	logContext = "systray"
-	isReady    = false
+	filesShow     []types.File // last accessed files in order
+	logContext    = "systray"
+	isConnected   = false
+	isLoadingDown = false
+	isLoadingUp   = false
+	isReady       = false
 
 	// captions
 	items = map[string]map[string]string{
@@ -52,6 +55,14 @@ var (
 			"de_de": "Autostart",
 			"en_us": "Auto start",
 		},
+		"ssl": map[string]string{
+			"de_de": "SSL verwenden",
+			"en_us": "Use SSL",
+		},
+		"sslVerify": map[string]string{
+			"de_de": "SSL verifizieren",
+			"en_us": "Verify SSL",
+		},
 		"debug": map[string]string{
 			"de_de": "Debug-Modus",
 			"en_us": "Debug mode",
@@ -63,55 +74,68 @@ var (
 	}
 
 	// menu items
-	mTitle   *systray.MenuItem
-	mConNo   *systray.MenuItem
-	mConYes  *systray.MenuItem
-	mFile0   *systray.MenuItem
-	mFile1   *systray.MenuItem
-	mFile2   *systray.MenuItem
-	mFile3   *systray.MenuItem
-	mFile4   *systray.MenuItem
-	mConfig  *systray.MenuItem
-	mLogs    *systray.MenuItem
-	mStartup *systray.MenuItem
-	mDebug   *systray.MenuItem
-	mQuit    *systray.MenuItem
+	mTitle     *systray.MenuItem
+	mConNo     *systray.MenuItem
+	mConYes    *systray.MenuItem
+	mFile0     *systray.MenuItem
+	mFile1     *systray.MenuItem
+	mFile2     *systray.MenuItem
+	mFile3     *systray.MenuItem
+	mFile4     *systray.MenuItem
+	mConfig    *systray.MenuItem
+	mLogs      *systray.MenuItem
+	mStartup   *systray.MenuItem
+	mSsl       *systray.MenuItem
+	mSslVerify *systray.MenuItem
+	mDebug     *systray.MenuItem
+	mQuit      *systray.MenuItem
 )
 
 func Fill() {
 	// set tray
 	lang := config.File.LanguageCode
 	systray.SetTitle(items["title"][lang])
-	systray.SetIcon(icon.Down)
+	systray.SetIcon(icon.Neutral)
 
-	// set menu items
+	// title
 	mTitle = systray.AddMenuItem(items["title"][lang], "")
 	mTitle.Disable()
+
+	// connection details
 	systray.AddSeparator()
 	mConNo = systray.AddMenuItem(items["conNo"][lang], "")
 	mConNo.Disable()
+	mConNo.Show()
 	mConYes = systray.AddMenuItem(items["conYes"][lang], "")
 	mConYes.Disable()
+	mConYes.Hide()
+
+	// last accessed files
 	systray.AddSeparator()
 	mFile0 = systray.AddMenuItem("-", "")
 	mFile1 = systray.AddMenuItem("-", "")
 	mFile2 = systray.AddMenuItem("-", "")
 	mFile3 = systray.AddMenuItem("-", "")
 	mFile4 = systray.AddMenuItem("-", "")
-	mFile0.Hide()
-	mFile1.Hide()
-	mFile2.Hide()
-	mFile3.Hide()
-	mFile4.Hide()
+
+	// file open actions
 	systray.AddSeparator()
 	mConfig = systray.AddMenuItem(items["config"][lang], "")
 	mLogs = systray.AddMenuItem(items["logs"][lang], "")
+
+	// toggle actions
 	systray.AddSeparator()
 	mStartup = systray.AddMenuItemCheckbox(items["startup"][lang], "", config.File.AutoStart)
+	mSsl = systray.AddMenuItemCheckbox(items["ssl"][lang], "", config.File.Ssl)
+	mSslVerify = systray.AddMenuItemCheckbox(items["sslVerify"][lang], "", config.File.SslVerify)
+	if !config.File.Ssl {
+		mSslVerify.Hide()
+	}
 	mDebug = systray.AddMenuItemCheckbox(items["debug"][lang], "", config.File.Debug)
+
+	// quite
 	systray.AddSeparator()
 	mQuit = systray.AddMenuItem(items["quit"][lang], "")
-	SetConnected(false)
 
 	isReady = true
 
@@ -145,16 +169,38 @@ func Fill() {
 				} else {
 					mStartup.Check()
 				}
+			case <-mSsl.ClickedCh:
+				config.File.Ssl = !config.File.Ssl
+				if err := config.WriteFile(); err != nil {
+					continue
+				}
+				if config.File.Ssl {
+					mSsl.Check()
+					mSslVerify.Show()
+				} else {
+					mSsl.Uncheck()
+					mSslVerify.Hide()
+				}
+			case <-mSslVerify.ClickedCh:
+				config.File.SslVerify = !config.File.SslVerify
+				if err := config.WriteFile(); err != nil {
+					continue
+				}
+				if config.File.SslVerify {
+					mSslVerify.Check()
+				} else {
+					mSslVerify.Uncheck()
+				}
 			case <-mDebug.ClickedCh:
 				config.File.Debug = !config.File.Debug
 				if err := config.WriteFile(); err != nil {
 					continue
 				}
 				log.SetDebug(config.File.Debug)
-				if mDebug.Checked() {
-					mDebug.Uncheck()
-				} else {
+				if config.File.Debug {
 					mDebug.Check()
+				} else {
+					mDebug.Uncheck()
 				}
 			case <-mQuit.ClickedCh:
 				systray.Quit()
@@ -173,20 +219,52 @@ func openFile(fileIndex int) {
 	}
 }
 
+func SetIcon() {
+	// 1st prio: not connected
+	if !isConnected {
+		systray.SetIcon(icon.Down)
+		return
+	}
+
+	// 2nd prio: uploading
+	if isLoadingUp {
+		systray.SetIcon(icon.Upload)
+		return
+	}
+
+	// 3rd prio: downloading
+	if isLoadingDown {
+		systray.SetIcon(icon.Download)
+		return
+	}
+
+	// if nothing else: neutral
+	systray.SetIcon(icon.Neutral)
+}
+
+func SetLoadingDown(v bool) {
+	isLoadingDown = v
+	SetIcon()
+}
+func SetLoadingUp(v bool) {
+	isLoadingUp = v
+	SetIcon()
+}
 func SetConnected(v bool) {
+	isConnected = v
 	if v {
 		mConNo.Hide()
 		mConYes.Show()
-		systray.SetIcon(icon.Neutral)
 	} else {
 		mConNo.Show()
 		mConYes.Hide()
-		systray.SetIcon(icon.Down)
 	}
+	SetIcon()
 }
 
 func SetFiles(files []types.File) {
-	log.Info(logContext, fmt.Sprintf("is updating last %d accessed files", len(files)))
+	log.Info(logContext, fmt.Sprintf("is updating last %d accessed files",
+		len(files)))
 
 	for i, f := range files {
 		switch i {

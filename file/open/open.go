@@ -13,8 +13,6 @@ func WithLocalSystem(filePath string, choose bool) error {
 
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", filePath)
 	case "linux":
 		cmd = exec.Command("xdg-open", filePath)
 	case "windows":

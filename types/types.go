@@ -25,5 +25,6 @@ type ConfigFile struct {
 	LanguageCode string `json:"languageCode"`
 	LoginId      int64  `json:"loginId"`
 	Ssl          bool   `json:"ssl"`
+	SslVerify    bool   `json:"sslVerify"`
 	TokenFixed   string `json:"tokenFixed"`
 }

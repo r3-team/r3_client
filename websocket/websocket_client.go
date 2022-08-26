@@ -20,24 +20,31 @@ var (
 	conn             *websocket.Conn // nil if closed
 	logContext       = "websocket"
 	transactionNrMap = make(map[uint64]types.RequestTransaction)
-	serverUrl        string // URL of websocket server
 )
-
-func SetServerUrl(v string) {
-	serverUrl = v
-}
 
 func Connect() error {
 	if conn != nil {
 		return nil
 	}
 
+	tlsConfig := config.GetTlsConfig()
+	dialer := websocket.Dialer{
+		TLSClientConfig: &tlsConfig,
+	}
+
+	wsScheme := "wss"
+	if !config.File.Ssl {
+		wsScheme = "ws"
+	}
+
 	var err error
-	conn, _, err = websocket.DefaultDialer.Dial(serverUrl, nil)
+	conn, _, err = dialer.Dial(fmt.Sprintf("%s://%s:%d/websocket",
+		wsScheme, config.File.HostName, config.File.HostPort), nil)
+
+	tray.SetConnected(err == nil)
 	if err != nil {
 		return err
 	}
-	tray.SetConnected(true)
 	return nil
 }
 func Disconnect(shuttingDown bool) {
@@ -64,6 +71,9 @@ func HandleReceived() {
 
 		_, message, err := conn.ReadMessage()
 		if err != nil {
+			if conn == nil {
+				continue
+			}
 			log.Error(logContext, "failed to read message", err)
 			Disconnect(false)
 			continue

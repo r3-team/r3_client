@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -20,6 +21,15 @@ var (
 	File types.ConfigFile
 )
 
+func GetTlsConfig() tls.Config {
+	tlsConfig := tls.Config{
+		PreferServerCipherSuites: true,
+	}
+	if !File.SslVerify {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	return tlsConfig
+}
 func GetIsAuthenticated() bool {
 	return authToken != ""
 }
@@ -59,6 +69,7 @@ func LoadCreateFile() error {
 			LanguageCode: "en_us",
 			LoginId:      -1,
 			Ssl:          true,
+			SslVerify:    true,
 			TokenFixed:   "LOGIN_APP_TOKEN",
 		}
 		if err := WriteFile(); err != nil {

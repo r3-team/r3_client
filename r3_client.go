@@ -35,8 +35,6 @@ func onReady() {
 	// define application user directory (create if required)
 	var appDir string
 	switch runtime.GOOS {
-	case "darwin":
-		fallthrough
 	case "linux":
 		appDir = filepath.Join(userDir, ".r3")
 	case "windows":
@@ -74,23 +72,15 @@ func onReady() {
 	// apply logging settings from config file
 	log.SetDebug(config.File.Debug)
 
-	// install application
+	// install application, app should start regardless of error during installation
 	if err := install.App(); err != nil {
 		log.Error(logContext, "failed to install application", err)
-		return
 	}
 
 	// fill system tray
 	tray.Fill()
 
 	// prepare websocket client
-	wsScheme := "wss"
-	if !config.File.Ssl {
-		wsScheme = "ws"
-	}
-	websocket.SetServerUrl(fmt.Sprintf("%s://%s:%d/websocket",
-		wsScheme, config.File.HostName, config.File.HostPort))
-
 	go websocket.HandleReceived()
 
 	// start file system watcher

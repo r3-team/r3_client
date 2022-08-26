@@ -35,6 +35,9 @@ func App() error {
 		if err := tools.FileCopy(filePathBinNow, filePathBin, false); err != nil {
 			return err
 		}
+		if err := os.Chmod(filePathBin, 0744); err != nil {
+			return err
+		}
 	}
 
 	// install/deinstall auto start

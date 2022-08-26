@@ -2,16 +2,20 @@ package file
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"r3_client/config"
+	"r3_client/tray"
 	"time"
 )
 
 func download(url string, filePath string) error {
+	tray.SetLoadingDown(true)
+	defer tray.SetLoadingDown(false)
+
 	httpClient := getHttpClient(false)
 	httpRes, err := httpClient.Get(url)
 	if err != nil {
@@ -36,6 +40,8 @@ func download(url string, filePath string) error {
 }
 
 func upload(url string, params map[string]string, fileName string, filePath string) error {
+	tray.SetLoadingUp(true)
+	defer tray.SetLoadingUp(false)
 
 	// prepare request body
 	body := new(bytes.Buffer)
@@ -85,12 +91,7 @@ func upload(url string, params map[string]string, fileName string, filePath stri
 
 func getHttpClient(skipVerify bool) http.Client {
 
-	tlsConfig := tls.Config{
-		PreferServerCipherSuites: true,
-	}
-	if skipVerify {
-		tlsConfig.InsecureSkipVerify = true
-	}
+	tlsConfig := config.GetTlsConfig()
 	httpTransport := &http.Transport{
 		TLSHandshakeTimeout: 5 * time.Second,
 		TLSClientConfig:     &tlsConfig,
