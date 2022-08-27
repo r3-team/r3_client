@@ -2,12 +2,15 @@ package file
 
 import (
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"r3_client/config"
 	"r3_client/log"
 	"r3_client/tools"
 	"r3_client/types"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gofrs/uuid"
@@ -15,6 +18,8 @@ import (
 
 var (
 	watcher                 *fsnotify.Watcher
+	watcherChecksPerFile    = 5
+	watcherChecksInterval   = time.Millisecond * 2000
 	watcherFileIdsActive    = make(map[uuid.UUID]bool)
 	watcherFileIdsActive_mx = sync.Mutex{}
 )
@@ -34,26 +39,32 @@ func WatcherStart() error {
 					return
 				}
 
-				if event.Op == fsnotify.Write {
-
-					// get last directory name
-					dirName := filepath.Base(filepath.Dir(event.Name))
-					fileName := filepath.Base(event.Name)
-
-					files_mx.Lock()
-					for fileId, f := range files {
-						if f.DirName == dirName && f.FileName == fileName {
-
-							watcherFileIdsActive_mx.Lock()
-							if _, exists := watcherFileIdsActive[fileId]; !exists {
-								watcherFileIdsActive[fileId] = true
-								go watcherReactToWrite(event.Name, fileId, f)
-							}
-							watcherFileIdsActive_mx.Unlock()
-						}
-					}
-					files_mx.Unlock()
+				// do not only check for write events
+				// MS office uses create/rename operations when writing changes between temp and the original file
+				if event.Op != fsnotify.Create && event.Op != fsnotify.Write && event.Op != fsnotify.Rename {
+					continue
 				}
+
+				// get last directory name
+				dirName := filepath.Base(filepath.Dir(event.Name))
+				fileName := filepath.Base(event.Name)
+
+				files_mx.Lock()
+				for fileId, f := range files {
+					if f.DirName == dirName && f.FileName == fileName {
+
+						log.Info(logContext, fmt.Sprintf("recognized file event '%s' (%s) for file ID '%s'",
+							event.Name, event.Op.String(), fileId))
+
+						watcherFileIdsActive_mx.Lock()
+						if _, exists := watcherFileIdsActive[fileId]; !exists {
+							watcherFileIdsActive[fileId] = true
+							go watcherReactToWrite(event.Name, fileId, f)
+						}
+						watcherFileIdsActive_mx.Unlock()
+					}
+				}
+				files_mx.Unlock()
 			case err, isOpen := <-watcher.Errors:
 				if !isOpen {
 					return
@@ -83,43 +94,80 @@ func watcherRemove(path string) error {
 func watcherReactToWrite(filePath string, fileId uuid.UUID, f types.File) {
 	defer watcherReleaseFile(fileId)
 
-	fileHash, err := tools.GetFileHash(filePath)
-	if err != nil {
-		log.Error(logContext, "failed to check file hash", err)
-		return
+	// wait shorty after the event to wait for file locks to be released
+	time.Sleep(time.Millisecond * 500)
+
+	var fileInfoLast fs.FileInfo
+
+	for checks := 0; checks < watcherChecksPerFile; checks++ {
+
+		if checks != 0 {
+			// on every subsequent event, wait for regular interval to expire
+			time.Sleep(watcherChecksInterval)
+		}
+
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			log.Error(logContext, "failed to check file info", err)
+			continue
+		}
+
+		if checks == 0 {
+			// check at least twice to recognize file being written to
+			fileInfoLast = fileInfo
+			continue
+		} else {
+			if fileInfoLast.ModTime() != fileInfo.ModTime() || fileInfoLast.Size() != fileInfo.Size() {
+				log.Info(logContext, "recognized changed file being written to, ignore change for now")
+				fileInfoLast = fileInfo
+				continue
+			}
+		}
+
+		// it seems file is not being written to, check file itself
+		// ignore 0 byte files (usual when new file was created and writing has not started)
+		if fileInfo.Size() == 0 {
+			log.Info(logContext, "recognized empty file, ignore change for now")
+			continue
+		}
+
+		// check for actual file hash changes
+		fileHash, err := tools.GetFileHash(filePath)
+		if err != nil {
+			log.Error(logContext, "failed to check file hash", err)
+			continue
+		}
+		if f.FileHash == fileHash {
+			log.Info(logContext, "recognized identical file hash, ignore change for now")
+			continue
+		}
+
+		log.Info(logContext, "recognized file change, trigger file version upload")
+
+		scheme := "https"
+		if !config.File.Ssl {
+			scheme = "http"
+		}
+		url := fmt.Sprintf("%s://%s:%d/data/upload", scheme,
+			config.File.HostName, config.File.HostPort)
+
+		params := map[string]string{
+			"token":       config.GetAuthToken(),
+			"attributeId": f.AttributeId.String(),
+			"fileId":      fileId.String(),
+		}
+
+		if err := upload(url, params, f.FileName, filePath); err != nil {
+			log.Error(logContext, "failed to upload new file version", err)
+			break
+		}
+		log.Info(logContext, "uploaded new file version successfully")
+
+		// upload successful, update file hash
+		setFileHash(fileId, fileHash)
+		break
 	}
 
-	if f.FileHash == fileHash {
-		return
-	}
-	log.Info(logContext, "recognized file change, trigger update")
-
-	scheme := "https"
-	if !config.File.Ssl {
-		scheme = "http"
-	}
-	url := fmt.Sprintf("%s://%s:%d/data/upload", scheme,
-		config.File.HostName, config.File.HostPort)
-
-	params := map[string]string{
-		"token":       config.GetAuthToken(),
-		"attributeId": f.AttributeId.String(),
-		"fileId":      fileId.String(),
-	}
-
-	if err := upload(url, params, f.FileName, filePath); err != nil {
-		log.Error(logContext, "failed to upload new file version", err)
-		return
-	}
-	log.Info(logContext, "uploaded new file version successfully")
-
-	// upload successful, update file hash
-	files_mx.Lock()
-	if f, exists := files[fileId]; exists {
-		f.FileHash = fileHash
-		files[fileId] = f
-	}
-	files_mx.Unlock()
 }
 func watcherReleaseFile(fileId uuid.UUID) {
 	watcherFileIdsActive_mx.Lock()

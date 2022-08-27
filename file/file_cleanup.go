@@ -45,9 +45,7 @@ func CleanupFiles() error {
 	files_mx.Unlock()
 
 	if len(idsDelete) != 0 {
-		if err := CacheStore(); err != nil {
-			log.Error(logContext, "failed to update file cache", err)
-		}
+		CacheStore()
 		updateTray()
 	}
 	return nil

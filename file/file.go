@@ -8,17 +8,15 @@ import (
 	"r3_client/file/open"
 	"r3_client/log"
 	"r3_client/tools"
-	"r3_client/tray"
 	"r3_client/types"
-	"sort"
 	"sync"
 
 	"github.com/gofrs/uuid"
 )
 
 var (
-	files_mx        sync.Mutex
 	files           = make(map[uuid.UUID]types.File) // key: file ID
+	files_mx        sync.Mutex
 	logContext      = "fileManager"
 	tempDir         = ""    // from OS
 	tempDirAttempts = 1000  // how many attempts to create file temp directory
@@ -36,12 +34,43 @@ func GetDirPath(dirName string) string {
 func GetFilePath(dirName string, fileName string) string {
 	return filepath.Join(tempDir, dirName, fileName)
 }
+func setFile(id uuid.UUID, f types.File, trayShouldUpdate bool) {
+	files_mx.Lock()
+	files[id] = f
+	files_mx.Unlock()
+
+	CacheStore()
+
+	if trayShouldUpdate {
+		updateTray()
+	}
+}
+func setFileHash(id uuid.UUID, hash string) {
+	files_mx.Lock()
+	f, exists := files[id]
+	files_mx.Unlock()
+
+	if exists {
+		f.FileHash = hash
+		setFile(id, f, false)
+	}
+}
+func setFileTouchedToNow(id uuid.UUID) {
+	files_mx.Lock()
+	f, exists := files[id]
+	files_mx.Unlock()
+
+	if exists {
+		f.Touched = tools.GetTimeUnix()
+		setFile(id, f, true)
+	}
+}
 
 func Open(attributeId uuid.UUID, fileId uuid.UUID,
 	fileHash string, fileName string, chooseApp bool) error {
 
 	var err error
-	defer updateTouched(fileId)
+	defer setFileTouchedToNow(fileId)
 
 	files_mx.Lock()
 	f, exists := files[fileId]
@@ -119,50 +148,10 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 		return err
 	}
 
-	// TEMP
-	// todo: check downloaded hash against expected file hash
-
 	// register file
-	files_mx.Lock()
-	files[fileId] = f
-	files_mx.Unlock()
-
+	setFile(fileId, f, true)
 	if err := watcherAdd(filepath.Join(tempDir, f.DirName)); err != nil {
 		return err
 	}
-	if err := CacheStore(); err != nil {
-		return err
-	}
 	return open.WithLocalSystem(filePath, chooseApp)
-}
-
-func updateTouched(fileId uuid.UUID) {
-	files_mx.Lock()
-	if f, exists := files[fileId]; exists {
-		f.Touched = tools.GetTimeUnix()
-		files[fileId] = f
-	}
-	files_mx.Unlock()
-	updateTray()
-}
-
-func updateTray() {
-	files_mx.Lock()
-	defer files_mx.Unlock()
-
-	// show latest 3 touched files in systray
-	keys := make([]uuid.UUID, 0, len(files))
-	for k := range files {
-		keys = append(keys, k)
-	}
-
-	sort.SliceStable(keys, func(i, j int) bool {
-		return files[keys[i]].Touched > files[keys[j]].Touched
-	})
-
-	filesShow := make([]types.File, 0)
-	for i := 0; i < trayFileCnt && i < len(keys); i++ {
-		filesShow = append(filesShow, files[keys[i]])
-	}
-	tray.SetFiles(filesShow)
 }

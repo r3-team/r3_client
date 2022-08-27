@@ -16,7 +16,7 @@ func SetFilePathCache(v string) {
 	filesCachePath = v
 }
 
-func CacheStore() error {
+func CacheStore() {
 	files_mx.Lock()
 	cache := types.FilesSaved{
 		Files: files,
@@ -25,9 +25,13 @@ func CacheStore() error {
 
 	cacheJson, err := json.Marshal(cache)
 	if err != nil {
-		return err
+		log.Error(logContext, "failed to update file cache", err)
+		return
 	}
-	return os.WriteFile(filesCachePath, cacheJson, 0644)
+	if err := os.WriteFile(filesCachePath, cacheJson, 0644); err != nil {
+		log.Error(logContext, "failed to update file cache JSON file", err)
+		return
+	}
 }
 
 func CacheRestore() error {
