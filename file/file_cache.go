@@ -40,6 +40,7 @@ func CacheRestore() error {
 		return err
 	}
 	if !exists {
+		updateTray()
 		return nil
 	}
 

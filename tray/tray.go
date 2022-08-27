@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	filesShow     []types.File // last accessed files in order
+	filesShow     = make([]types.File, 0) // last accessed files in order
 	logContext    = "systray"
 	isConnected   = false
 	isLoadingDown = false

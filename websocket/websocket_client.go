@@ -87,6 +87,7 @@ func HandleReceived() {
 		}
 		if res.Error != "" {
 			log.Error(logContext, "response returned error", errors.New(res.Error))
+			tray.SetConnected(false)
 			continue
 		}
 
