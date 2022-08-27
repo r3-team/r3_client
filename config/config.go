@@ -14,6 +14,7 @@ import (
 var (
 	access_mx   = &sync.Mutex{}
 	authToken   string // authentication JWT
+	fileName    = "r3_client.conf"
 	pathApp     string // application path
 	pathUser    string // user home path
 	pathHomedir string
@@ -36,6 +37,9 @@ func GetIsAuthenticated() bool {
 func GetAuthToken() string {
 	return authToken
 }
+func GetFileName() string {
+	return fileName
+}
 func GetPathApp() string {
 	return pathApp
 }
@@ -54,7 +58,7 @@ func SetPathUser(v string) {
 func LoadCreateFile() error {
 
 	// create new config file with defaults if it does not exist
-	filePath := filepath.Join(pathApp, "config.json")
+	filePath := filepath.Join(pathApp, fileName)
 	exists, err := tools.Exists(filePath)
 	if err != nil {
 		return err
@@ -100,5 +104,5 @@ func WriteFile() error {
 	}
 
 	// write configuration to JSON file
-	return os.WriteFile(filepath.Join(pathApp, "config.json"), json, 0644)
+	return os.WriteFile(filepath.Join(pathApp, fileName), json, 0644)
 }

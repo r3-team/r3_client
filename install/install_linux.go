@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"r3_client/config"
 )
 
 const (
@@ -20,10 +21,13 @@ StartupNotify=false
 Terminal=false`
 )
 
-func getFilePathBin(appDir string) string {
-	return filepath.Join(appDir, binName)
+func getFilePathBin() string {
+	return filepath.Join(config.GetPathApp(), binName)
 }
-func getFilePathLnk(userDir string) string {
+func getFilePathCnf() string {
+	return filepath.Join(config.GetPathApp(), config.GetFileName())
+}
+func getFilePathLnk() string {
 	var dir string
 
 	if os.Getenv("XDG_CONFIG_HOME") != "" {

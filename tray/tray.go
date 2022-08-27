@@ -153,7 +153,7 @@ func Fill() {
 			case <-mFile4.ClickedCh:
 				openFile(4)
 			case <-mConfig.ClickedCh:
-				open.WithLocalSystem(filepath.Join(config.GetPathApp(), "config.json"), false)
+				open.WithLocalSystem(filepath.Join(config.GetPathApp(), config.GetFileName()), false)
 			case <-mLogs.ClickedCh:
 				open.WithLocalSystem(filepath.Join(config.GetPathApp(), "client.log"), false)
 			case <-mStartup.ClickedCh:

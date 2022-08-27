@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"r3_client/config"
 )
 
 const (
@@ -18,12 +19,15 @@ $Shortcut.TargetPath = "%s"
 $Shortcut.Save()`
 )
 
-func getFilePathBin(appDir string) string {
-	return filepath.Join(appDir, binName)
+func getFilePathBin() string {
+	return filepath.Join(config.GetPathApp(), binName)
 }
-func getFilePathLnk(userDir string) string {
-	return filepath.Join([]string{userDir, "AppData", "Roaming", "Microsoft",
-		"Windows", "Start Menu", "Programs", "Startup", lnkName}...)
+func getFilePathCnf() string {
+	return filepath.Join(config.GetPathApp(), config.GetFileName())
+}
+func getFilePathLnk() string {
+	return filepath.Join([]string{config.GetPathUser(), "AppData", "Roaming",
+		"Microsoft", "Windows", "Start Menu", "Programs", "Startup", lnkName}...)
 }
 func createLnk(filePathLnk string, filePathBin string) error {
 	psCmd, err := exec.LookPath("powershell.exe")
