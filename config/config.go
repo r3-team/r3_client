@@ -13,6 +13,7 @@ import (
 
 var (
 	access_mx   = &sync.Mutex{}
+	appVersion  string
 	authToken   string // authentication JWT
 	fileName    = "r3_client.conf"
 	pathApp     string // application path
@@ -31,6 +32,9 @@ func GetTlsConfig() tls.Config {
 	}
 	return tlsConfig
 }
+func GetAppVersion() string {
+	return appVersion
+}
 func GetIsAuthenticated() bool {
 	return authToken != ""
 }
@@ -45,6 +49,9 @@ func GetPathApp() string {
 }
 func GetPathUser() string {
 	return pathUser
+}
+func SetAppVersion(v string) {
+	appVersion = v
 }
 func SetAuthToken(v string) {
 	authToken = v

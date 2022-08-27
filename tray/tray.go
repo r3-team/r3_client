@@ -14,13 +14,6 @@ import (
 	"fyne.io/systray"
 )
 
-type menuItem struct {
-	check   bool // is checkbox
-	checked bool // checkbox is active
-	fn      func()
-	title   map[string]string // lang:caption
-}
-
 var (
 	filesShow     []types.File // last accessed files in order
 	logContext    = "systray"
@@ -94,11 +87,12 @@ var (
 func Fill() {
 	// set tray
 	lang := config.File.LanguageCode
-	systray.SetTitle(items["title"][lang])
+	title := fmt.Sprintf("%s (%s)", items["title"][lang], config.GetAppVersion())
+	systray.SetTitle(title)
 	systray.SetIcon(icon.Neutral)
 
 	// title
-	mTitle = systray.AddMenuItem(items["title"][lang], "")
+	mTitle = systray.AddMenuItem(title, "")
 	mTitle.Disable()
 
 	// connection details

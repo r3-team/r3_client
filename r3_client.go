@@ -18,9 +18,15 @@ import (
 	"fyne.io/systray"
 )
 
-var logContext = "system"
+var (
+	logContext = "system"
+
+	// overwritten by build parameters
+	appVersion = "0.1.2.3"
+)
 
 func main() {
+	config.SetAppVersion(appVersion)
 	systray.Run(onReady, onExit)
 }
 
