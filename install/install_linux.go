@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	binName = "r3_client"
+	binName = "r3_client.bin"
 	lnkName = "r3_client.desktop"
 
 	desktopFile = `[Desktop Entry]

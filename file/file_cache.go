@@ -23,7 +23,7 @@ func CacheStore() {
 	}
 	files_mx.Unlock()
 
-	cacheJson, err := json.Marshal(cache)
+	cacheJson, err := json.MarshalIndent(cache, "", "\t")
 	if err != nil {
 		log.Error(logContext, "failed to update file cache", err)
 		return

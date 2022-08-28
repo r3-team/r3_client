@@ -25,7 +25,7 @@ func App() error {
 	filePathCnf := getFilePathCnf()
 	filePathLnk := getFilePathLnk()
 
-	if filePathBinNow != filePathBin {
+	if filepath.Dir(filePathBinNow) != filepath.Dir(filePathBin) {
 		// app is started outside of its directory
 
 		// install app to application directory if not there already
@@ -65,12 +65,20 @@ func App() error {
 			return err
 		}
 		if exists {
-			if err := tools.FileCopy(filePathCnfCurrDir, filePathCnf, false); err != nil {
+			// only copy config file, if target file does not exist
+			exists, err = tools.Exists(filePathCnf)
+			if err != nil {
 				return err
 			}
-			if err := config.ReadFile(); err != nil {
-				return err
+			if !exists {
+				if err := tools.FileCopy(filePathCnfCurrDir, filePathCnf, false); err != nil {
+					return err
+				}
+				if err := config.ReadFile(); err != nil {
+					return err
+				}
 			}
+
 		}
 	}
 

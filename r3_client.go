@@ -54,7 +54,6 @@ func onReady() {
 		quitWithErr("failed to start", fmt.Errorf("unsupported runtime environment '%s'", runtime.GOOS))
 		return
 	}
-	log.Info(logContext, fmt.Sprintf("set application user directory to '%s'", appDir))
 
 	exists, err := tools.Exists(appDir)
 	if err != nil {
@@ -71,8 +70,8 @@ func onReady() {
 	// define paths
 	config.SetPathApp(appDir)
 	config.SetPathUser(userDir)
-	file.SetFilePathCache(filepath.Join(appDir, "files.json"))
-	log.SetFilePath(filepath.Join(appDir, "client.log"))
+	file.SetFilePathCache(filepath.Join(appDir, "r3_client_files.json"))
+	log.SetFilePath(filepath.Join(appDir, "r3_client.log"))
 
 	// check whether another instance of the application is running
 	if err := lock.GetExclusive(); err != nil {
@@ -80,7 +79,12 @@ func onReady() {
 		return
 	}
 
-	// load or create config file
+	// install application, app should start regardless of error during installation
+	if err := install.App(); err != nil {
+		log.Error(logContext, "failed to install application", err)
+	}
+
+	// load config file
 	if err := config.ReadFile(); err != nil {
 		quitWithErr("failed to read config file", err)
 		return
@@ -88,11 +92,6 @@ func onReady() {
 
 	// apply logging settings from config file
 	log.SetDebug(config.GetDebug())
-
-	// install application, app should start regardless of error during installation
-	if err := install.App(); err != nil {
-		log.Error(logContext, "failed to install application", err)
-	}
 
 	// fill system tray
 	tray.SetDefaults()
