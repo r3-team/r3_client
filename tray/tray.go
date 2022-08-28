@@ -6,21 +6,26 @@ import (
 	"path/filepath"
 	"r3_client/config"
 	"r3_client/file/open"
-	"r3_client/icon"
 	"r3_client/install"
 	"r3_client/log"
 	"r3_client/types"
+	"sync"
 
 	"fyne.io/systray"
+	"github.com/gofrs/uuid"
 )
 
 var (
-	filesShow     = make([]types.File, 0) // last accessed files in order
-	logContext    = "systray"
-	isConnected   = false
+	access_mx = sync.Mutex{}
+
+	filesShow              = make([]types.File, 0)    // last accessed files in order
+	instanceIdMapConnected = make(map[uuid.UUID]bool) // map of instances that are connected, key: instance ID
+	logContext             = "systray"
+	title                  = "" // system tray title
+
 	isLoadingDown = false
 	isLoadingUp   = false
-	isReady       = false
+	isFilledOnce  = false
 
 	// captions
 	items = map[string]map[string]string{
@@ -57,8 +62,8 @@ var (
 			"en_us": "Verify SSL",
 		},
 		"debug": map[string]string{
-			"de_de": "Debug-Modus",
-			"en_us": "Debug mode",
+			"de_de": "Debug-Logging",
+			"en_us": "Debug logging",
 		},
 		"quit": map[string]string{
 			"de_de": "Beenden",
@@ -67,50 +72,90 @@ var (
 	}
 
 	// menu items
-	mTitle     *systray.MenuItem
-	mConNo     *systray.MenuItem
-	mConYes    *systray.MenuItem
-	mFile0     *systray.MenuItem
-	mFile1     *systray.MenuItem
-	mFile2     *systray.MenuItem
-	mFile3     *systray.MenuItem
-	mFile4     *systray.MenuItem
-	mConfig    *systray.MenuItem
-	mLogs      *systray.MenuItem
-	mStartup   *systray.MenuItem
-	mSsl       *systray.MenuItem
-	mSslVerify *systray.MenuItem
-	mDebug     *systray.MenuItem
-	mQuit      *systray.MenuItem
+	itemsCleared = make(chan bool)
+	mTitle       *systray.MenuItem
+	mFile0       *systray.MenuItem
+	mFile1       *systray.MenuItem
+	mFile2       *systray.MenuItem
+	mFile3       *systray.MenuItem
+	mFile4       *systray.MenuItem
+	mConfig      *systray.MenuItem
+	mLogs        *systray.MenuItem
+	mStartup     *systray.MenuItem
+	mSsl         *systray.MenuItem
+	mSslVerify   *systray.MenuItem
+	mDebug       *systray.MenuItem
+	mQuit        *systray.MenuItem
 )
 
-func Fill() {
-	// set tray
-	lang := config.File.LanguageCode
-	title := fmt.Sprintf("%s (%s)", items["title"][lang], config.GetAppVersion())
+func SetDefaults() {
+	access_mx.Lock()
+	title = fmt.Sprintf("%s (%s)", items["title"][config.GetLanguageCode()], config.GetAppVersion())
 	systray.SetTitle(title)
-	systray.SetIcon(icon.Neutral)
+	access_mx.Unlock()
+	updateIcon()
+}
 
-	// title
+func FillMenu() {
+	access_mx.Lock()
+	defer access_mx.Unlock()
+	lang := config.GetLanguageCode()
+
+	log.Info(logContext, "is rebuilding its menu items")
+
+	// clear old handlers
+	if isFilledOnce {
+		systray.ResetMenu()
+		itemsCleared <- true
+	}
+
+	// title entry
 	mTitle = systray.AddMenuItem(title, "")
 	mTitle.Disable()
 
-	// connection details
+	// instance connections
 	systray.AddSeparator()
-	mConNo = systray.AddMenuItem(items["conNo"][lang], "")
-	mConNo.Disable()
-	mConNo.Show()
-	mConYes = systray.AddMenuItem(items["conYes"][lang], "")
-	mConYes.Disable()
-	mConYes.Hide()
+	for instanceId, inst := range config.GetInstances() {
+		connected, exists := instanceIdMapConnected[instanceId]
+		if exists && connected {
+			systray.AddMenuItem(fmt.Sprintf("%s:%d %s", inst.HostName, inst.HostPort, items["conYes"][lang]), "")
+		} else {
+			systray.AddMenuItem(fmt.Sprintf("%s:%d %s", inst.HostName, inst.HostPort, items["conNo"][lang]), "")
+		}
+	}
 
 	// last accessed files
 	systray.AddSeparator()
 	mFile0 = systray.AddMenuItem("-", "")
+	mFile0.Hide()
 	mFile1 = systray.AddMenuItem("-", "")
+	mFile1.Hide()
 	mFile2 = systray.AddMenuItem("-", "")
+	mFile2.Hide()
 	mFile3 = systray.AddMenuItem("-", "")
+	mFile3.Hide()
 	mFile4 = systray.AddMenuItem("-", "")
+	mFile4.Hide()
+
+	for i, f := range filesShow {
+		switch i {
+		case 0:
+			mFile0.SetTitle(f.FileName)
+			mFile0.Show()
+		case 1:
+			mFile1.SetTitle(f.FileName)
+			mFile1.Show()
+		case 2:
+			mFile2.SetTitle(f.FileName)
+			mFile2.Show()
+		case 3:
+			mFile3.SetTitle(f.FileName)
+			mFile3.Show()
+		case 4:
+			mFile4.SetTitle(f.FileName)
+			mFile4.Show()
+		}
+	}
 
 	// file open actions
 	systray.AddSeparator()
@@ -119,23 +164,25 @@ func Fill() {
 
 	// toggle actions
 	systray.AddSeparator()
-	mStartup = systray.AddMenuItemCheckbox(items["startup"][lang], "", config.File.AutoStart)
-	mSsl = systray.AddMenuItemCheckbox(items["ssl"][lang], "", config.File.Ssl)
-	mSslVerify = systray.AddMenuItemCheckbox(items["sslVerify"][lang], "", config.File.SslVerify)
-	if !config.File.Ssl {
+	mStartup = systray.AddMenuItemCheckbox(items["startup"][lang], "", config.GetAutoStart())
+	mSsl = systray.AddMenuItemCheckbox(items["ssl"][lang], "", config.GetSsl())
+	mSslVerify = systray.AddMenuItemCheckbox(items["sslVerify"][lang], "", config.GetSslVerify())
+	if !config.GetSsl() {
 		mSslVerify.Hide()
 	}
-	mDebug = systray.AddMenuItemCheckbox(items["debug"][lang], "", config.File.Debug)
+	mDebug = systray.AddMenuItemCheckbox(items["debug"][lang], "", config.GetDebug())
 
-	// quite
+	// quit
 	systray.AddSeparator()
 	mQuit = systray.AddMenuItem(items["quit"][lang], "")
 
-	isReady = true
-
+	// handle menu item events
+	isFilledOnce = true
 	go func() {
 		for {
 			select {
+			case <-itemsCleared:
+				return
 			case <-mFile0.ClickedCh:
 				openFile(0)
 			case <-mFile1.ClickedCh:
@@ -151,24 +198,24 @@ func Fill() {
 			case <-mLogs.ClickedCh:
 				open.WithLocalSystem(filepath.Join(config.GetPathApp(), "client.log"), false)
 			case <-mStartup.ClickedCh:
-				config.File.AutoStart = !config.File.AutoStart
+				config.SetAutoStart(!config.GetAutoStart())
 				if err := config.WriteFile(); err != nil {
 					continue
 				}
 				if err := install.App(); err != nil {
 					continue
 				}
-				if mStartup.Checked() {
-					mStartup.Uncheck()
-				} else {
+				if config.GetAutoStart() {
 					mStartup.Check()
+				} else {
+					mStartup.Uncheck()
 				}
 			case <-mSsl.ClickedCh:
-				config.File.Ssl = !config.File.Ssl
+				config.SetSsl(!config.GetSsl())
 				if err := config.WriteFile(); err != nil {
 					continue
 				}
-				if config.File.Ssl {
+				if config.GetSsl() {
 					mSsl.Check()
 					mSslVerify.Show()
 				} else {
@@ -176,22 +223,22 @@ func Fill() {
 					mSslVerify.Hide()
 				}
 			case <-mSslVerify.ClickedCh:
-				config.File.SslVerify = !config.File.SslVerify
+				config.SetSslVerify(!config.GetSslVerify())
 				if err := config.WriteFile(); err != nil {
 					continue
 				}
-				if config.File.SslVerify {
+				if config.GetSslVerify() {
 					mSslVerify.Check()
 				} else {
 					mSslVerify.Uncheck()
 				}
 			case <-mDebug.ClickedCh:
-				config.File.Debug = !config.File.Debug
+				config.SetDebug(!config.GetDebug())
 				if err := config.WriteFile(); err != nil {
 					continue
 				}
-				log.SetDebug(config.File.Debug)
-				if config.File.Debug {
+				log.SetDebug(config.GetDebug())
+				if config.GetDebug() {
 					mDebug.Check()
 				} else {
 					mDebug.Uncheck()
@@ -211,88 +258,4 @@ func openFile(fileIndex int) {
 	if err := open.WithLocalSystem(filepath.Join(os.TempDir(), f.DirName, f.FileName), false); err != nil {
 		log.Error(logContext, "failed to open file", err)
 	}
-}
-
-func SetIcon() {
-	// 1st prio: not connected
-	if !isConnected {
-		systray.SetIcon(icon.Down)
-		return
-	}
-
-	// 2nd prio: uploading
-	if isLoadingUp {
-		systray.SetIcon(icon.Upload)
-		return
-	}
-
-	// 3rd prio: downloading
-	if isLoadingDown {
-		systray.SetIcon(icon.Download)
-		return
-	}
-
-	// if nothing else: neutral
-	systray.SetIcon(icon.Neutral)
-}
-
-func SetLoadingDown(v bool) {
-	isLoadingDown = v
-	SetIcon()
-}
-func SetLoadingUp(v bool) {
-	isLoadingUp = v
-	SetIcon()
-}
-func SetConnected(v bool) {
-	isConnected = v
-	if v {
-		mConNo.Hide()
-		mConYes.Show()
-	} else {
-		mConNo.Show()
-		mConYes.Hide()
-	}
-	SetIcon()
-}
-
-func SetFiles(files []types.File) {
-	log.Info(logContext, fmt.Sprintf("is updating last %d accessed files",
-		len(files)))
-
-	for i, f := range files {
-		switch i {
-		case 0:
-			mFile0.SetTitle(f.FileName)
-			mFile0.Show()
-		case 1:
-			mFile1.SetTitle(f.FileName)
-			mFile1.Show()
-		case 2:
-			mFile2.SetTitle(f.FileName)
-			mFile2.Show()
-		case 3:
-			mFile3.SetTitle(f.FileName)
-			mFile3.Show()
-		case 4:
-			mFile4.SetTitle(f.FileName)
-			mFile4.Show()
-		}
-	}
-	if len(files) < 5 {
-		mFile4.Hide()
-	}
-	if len(files) < 4 {
-		mFile3.Hide()
-	}
-	if len(files) < 3 {
-		mFile2.Hide()
-	}
-	if len(files) < 2 {
-		mFile1.Hide()
-	}
-	if len(files) < 1 {
-		mFile0.Hide()
-	}
-	filesShow = files
 }

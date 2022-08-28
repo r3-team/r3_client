@@ -76,10 +76,12 @@ func WatcherStart() error {
 	return nil
 }
 func WatcherStop() {
-	if err := watcher.Close(); err != nil {
-		log.Error(logContext, "failed to close file watcher", err)
+	if watcher != nil {
+		if err := watcher.Close(); err != nil {
+			log.Error(logContext, "failed to close file watcher", err)
+		}
+		watcher = nil
 	}
-	watcher = nil
 }
 
 func watcherAdd(path string) error {
@@ -142,17 +144,22 @@ func watcherReactToWrite(filePath string, fileId uuid.UUID, f types.File) {
 			continue
 		}
 
+		// upload file
 		log.Info(logContext, "recognized file change, trigger file version upload")
 
+		inst, err := config.GetInstance(f.InstanceId)
+		if err != nil {
+			log.Error(logContext, "failed to upload new file version", fmt.Errorf("unknown instance"))
+			break
+		}
+
 		scheme := "https"
-		if !config.File.Ssl {
+		if !config.GetSsl() {
 			scheme = "http"
 		}
-		url := fmt.Sprintf("%s://%s:%d/data/upload", scheme,
-			config.File.HostName, config.File.HostPort)
-
+		url := fmt.Sprintf("%s://%s:%d/data/upload", scheme, inst.HostName, inst.HostPort)
 		params := map[string]string{
-			"token":       config.GetAuthToken(),
+			"token":       config.GetAuthToken(f.InstanceId),
 			"attributeId": f.AttributeId.String(),
 			"fileId":      fileId.String(),
 		}

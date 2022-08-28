@@ -10,6 +10,7 @@ import (
 	"r3_client/file"
 	"r3_client/install"
 	"r3_client/job"
+	"r3_client/lock"
 	"r3_client/log"
 	"r3_client/tools"
 	"r3_client/tray"
@@ -29,12 +30,16 @@ func main() {
 	config.SetAppVersion(appVersion)
 	systray.Run(onReady, onExit)
 }
+func quitWithErr(message string, err error) {
+	log.Error(logContext, message, err)
+	systray.Quit()
+}
 
 func onReady() {
 	// get user home dir
 	userDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Error(logContext, "failed to ascertain user home directory", err)
+		quitWithErr("failed to ascertain user home directory", err)
 		return
 	}
 
@@ -46,19 +51,19 @@ func onReady() {
 	case "windows":
 		appDir = filepath.Join(userDir, "AppData", "Local", "r3")
 	default:
-		log.Error(logContext, "failed to start", fmt.Errorf("unsupported runtime environment '%s'", runtime.GOOS))
+		quitWithErr("failed to start", fmt.Errorf("unsupported runtime environment '%s'", runtime.GOOS))
 		return
 	}
 	log.Info(logContext, fmt.Sprintf("set application user directory to '%s'", appDir))
 
 	exists, err := tools.Exists(appDir)
 	if err != nil {
-		log.Error(logContext, "failed check application user directory", err)
+		quitWithErr("failed to check application user directory", err)
 		return
 	}
 	if !exists {
 		if err := os.Mkdir(appDir, 0755); err != nil {
-			log.Error(logContext, "failed to create application user directory", err)
+			quitWithErr("failed to create application user directory", err)
 			return
 		}
 	}
@@ -69,14 +74,20 @@ func onReady() {
 	file.SetFilePathCache(filepath.Join(appDir, "files.json"))
 	log.SetFilePath(filepath.Join(appDir, "client.log"))
 
+	// check whether another instance of the application is running
+	if err := lock.GetExclusive(); err != nil {
+		quitWithErr("failed to get exclusive access to lock file", err)
+		return
+	}
+
 	// load or create config file
-	if err := config.LoadCreateFile(); err != nil {
-		log.Error(logContext, "failed to load/create config file", err)
+	if err := config.ReadFile(); err != nil {
+		quitWithErr("failed to read config file", err)
 		return
 	}
 
 	// apply logging settings from config file
-	log.SetDebug(config.File.Debug)
+	log.SetDebug(config.GetDebug())
 
 	// install application, app should start regardless of error during installation
 	if err := install.App(); err != nil {
@@ -84,20 +95,17 @@ func onReady() {
 	}
 
 	// fill system tray
-	tray.Fill()
-
-	// prepare websocket client
-	go websocket.HandleReceived()
+	tray.SetDefaults()
 
 	// start file system watcher
 	if err := file.WatcherStart(); err != nil {
-		log.Error(logContext, "failed to start file system watcher", err)
+		quitWithErr("failed to start file system watcher", err)
 		return
 	}
 
 	// restore handled files from cache
 	if err := file.CacheRestore(); err != nil {
-		log.Error(logContext, "failed to restore file cache", err)
+		quitWithErr("failed to restore file cache", err)
 		return
 	}
 
@@ -106,7 +114,8 @@ func onReady() {
 }
 
 func onExit() {
+	lock.Release()
 	job.Stop()
 	file.WatcherStop()
-	websocket.Disconnect(true)
+	websocket.Shutdown()
 }

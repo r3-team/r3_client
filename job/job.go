@@ -2,6 +2,7 @@ package job
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"r3_client/call"
@@ -19,7 +20,8 @@ type job struct {
 }
 
 var (
-	running bool
+	running    bool
+	running_mx = sync.Mutex{}
 
 	jobs = []job{job{
 		fn:          log.RotateIfNecessary,
@@ -45,13 +47,19 @@ var (
 )
 
 func Start() {
+	running_mx.Lock()
 	running = true
+	running_mx.Unlock()
 
 	// first start wait time
 	time.Sleep(time.Second)
 
 	for {
-		if !running {
+		running_mx.Lock()
+		isRunning := running
+		running_mx.Unlock()
+
+		if !isRunning {
 			break
 		}
 		now := time.Now().Unix()
@@ -73,5 +81,7 @@ func Start() {
 }
 
 func Stop() {
+	running_mx.Lock()
+	defer running_mx.Unlock()
 	running = false
 }

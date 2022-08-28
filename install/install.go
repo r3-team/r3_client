@@ -68,7 +68,7 @@ func App() error {
 			if err := tools.FileCopy(filePathCnfCurrDir, filePathCnf, false); err != nil {
 				return err
 			}
-			if err := config.LoadCreateFile(); err != nil {
+			if err := config.ReadFile(); err != nil {
 				return err
 			}
 		}
@@ -80,14 +80,14 @@ func App() error {
 		return err
 	}
 
-	if config.File.AutoStart && !exists {
+	if config.GetAutoStart() && !exists {
 		// copy link to binary to startup folder
 		log.Info(logContext, fmt.Sprintf("is setting auto start link file at '%s'",
 			filePathLnk))
 
 		return createLnk(filePathLnk, filePathBin)
-	}
-	if !config.File.AutoStart && exists {
+
+	} else if !config.GetAutoStart() && exists {
 		// remove link to binary from startup folder
 		log.Info(logContext, fmt.Sprintf("is removing auto start link file at '%s'",
 			filePathLnk))

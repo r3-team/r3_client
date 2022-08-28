@@ -66,12 +66,10 @@ func setFileTouchedToNow(id uuid.UUID) {
 	}
 }
 
-func Open(attributeId uuid.UUID, fileId uuid.UUID,
+func Open(instanceId uuid.UUID, attributeId uuid.UUID, fileId uuid.UUID,
 	fileHash string, fileName string, chooseApp bool) error {
 
 	var err error
-	defer setFileTouchedToNow(fileId)
-
 	files_mx.Lock()
 	f, exists := files[fileId]
 	files_mx.Unlock()
@@ -114,6 +112,7 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 		f.DirName = dirName
 		f.FileHash = fileHash
 		f.FileName = fileName
+		f.InstanceId = instanceId
 		f.Touched = tools.GetTimeUnix()
 	}
 	filePath := GetFilePath(f.DirName, f.FileName)
@@ -123,6 +122,7 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 
 			// correct file version is already available, just open it
 			log.Info(logContext, "already has the correct file version available, opens it")
+			setFileTouchedToNow(fileId)
 			return open.WithLocalSystem(filePath, chooseApp)
 		} else {
 			// file exists but is outdated, remove it
@@ -135,13 +135,18 @@ func Open(attributeId uuid.UUID, fileId uuid.UUID,
 	}
 
 	// download file
+	inst, err := config.GetInstance(instanceId)
+	if err != nil {
+		return err
+	}
+
 	scheme := "https"
-	if !config.File.Ssl {
+	if !config.GetSsl() {
 		scheme = "http"
 	}
 	fileUrl := fmt.Sprintf("%s://%s:%d/data/download/%s?attribute_id=%s&file_id=%s&token=%s",
-		scheme, config.File.HostName, config.File.HostPort, fileName,
-		attributeId, fileId, config.GetAuthToken())
+		scheme, inst.HostName, inst.HostPort, fileName,
+		attributeId, fileId, config.GetAuthToken(instanceId))
 
 	log.Info(logContext, fmt.Sprintf("downloading file from '%s'", fileUrl))
 	if err := download(fileUrl, filePath); err != nil {

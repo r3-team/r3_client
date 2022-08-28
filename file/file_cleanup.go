@@ -15,10 +15,11 @@ func CleanupFiles() error {
 
 	now := tools.GetTimeUnix()
 	idsDelete := make([]uuid.UUID, 0)
+	secKeepFor := config.GetKeepFilesSec()
 
 	files_mx.Lock()
 	for id, f := range files {
-		if f.Touched+config.File.KeepFilesSec < now {
+		if f.Touched+secKeepFor < now {
 			idsDelete = append(idsDelete, id)
 		}
 	}

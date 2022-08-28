@@ -1,68 +1,32 @@
 package config
 
 import (
-	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"r3_client/tools"
 	"r3_client/types"
+
+	"github.com/gofrs/uuid"
 )
 
 var (
-	access_mx   = &sync.Mutex{}
+	access_mx = &sync.Mutex{}
+
 	appVersion  string
-	authToken   string // authentication JWT
+	file        types.ConfigFile // config file
 	fileName    = "r3_client.conf"
 	pathApp     string // application path
 	pathUser    string // user home path
 	pathHomedir string
 
-	File types.ConfigFile
+	instanceIdMapToken = make(map[uuid.UUID]string) // map of instance JWTs, key: instance ID
 )
 
-func GetTlsConfig() tls.Config {
-	tlsConfig := tls.Config{
-		PreferServerCipherSuites: true,
-	}
-	if !File.SslVerify {
-		tlsConfig.InsecureSkipVerify = true
-	}
-	return tlsConfig
-}
-func GetAppVersion() string {
-	return appVersion
-}
-func GetIsAuthenticated() bool {
-	return authToken != ""
-}
-func GetAuthToken() string {
-	return authToken
-}
-func GetFileName() string {
-	return fileName
-}
-func GetPathApp() string {
-	return pathApp
-}
-func GetPathUser() string {
-	return pathUser
-}
-func SetAppVersion(v string) {
-	appVersion = v
-}
-func SetAuthToken(v string) {
-	authToken = v
-}
-func SetPathApp(v string) {
-	pathApp = v
-}
-func SetPathUser(v string) {
-	pathUser = v
-}
-func LoadCreateFile() error {
+func ReadFile() error {
 
 	// create new config file with defaults if it does not exist
 	filePath := filepath.Join(pathApp, fileName)
@@ -71,24 +35,8 @@ func LoadCreateFile() error {
 		return err
 	}
 	if !exists {
-		File = types.ConfigFile{
-			AutoStart:    true,
-			Debug:        false,
-			DeviceName:   "DEVICE_NAME",
-			HostName:     "SERVER_HOSTNAME",
-			HostPort:     443,
-			LanguageCode: "en_us",
-			LoginId:      -1,
-			Ssl:          true,
-			SslVerify:    true,
-			TokenFixed:   "LOGIN_APP_TOKEN",
-		}
-		if err := WriteFile(); err != nil {
-			return err
-		}
+		return fmt.Errorf("config file does not exist at '%s'", filePath)
 	}
-	access_mx.Lock()
-	defer access_mx.Unlock()
 
 	// read configuration from file
 	configJson, err := os.ReadFile(filePath)
@@ -98,14 +46,16 @@ func LoadCreateFile() error {
 	configJson = tools.RemoveUtf8Bom(configJson)
 
 	// unmarshal configuration JSON content
-	return json.Unmarshal(configJson, &File)
+	access_mx.Lock()
+	defer access_mx.Unlock()
+	return json.Unmarshal(configJson, &file)
 }
 func WriteFile() error {
 	access_mx.Lock()
 	defer access_mx.Unlock()
 
 	// marshal configuration JSON
-	json, err := json.MarshalIndent(File, "", "\t")
+	json, err := json.MarshalIndent(file, "", "\t")
 	if err != nil {
 		return err
 	}
