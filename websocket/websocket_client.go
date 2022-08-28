@@ -59,43 +59,31 @@ func Connect() error {
 			continue
 		}
 
-		if !connExists {
-			instanceIdMapConn_mx.Lock()
-			instanceIdMapConn[instanceId] = conn
-			instanceIdMapConn_mx.Unlock()
-
-			go handleReceived(instanceId, conn)
-		}
+		instanceIdMapConn_mx.Lock()
+		instanceIdMapConn[instanceId] = conn
+		instanceIdMapConn_mx.Unlock()
+		go handleReceived(instanceId, conn)
 	}
 	return nil
 }
 
-func disconnect(instanceId uuid.UUID, keepsRunning bool) {
+func DisconnectAll() {
+	log.Info(logContext, "is closing all connections")
+
 	instanceIdMapConn_mx.Lock()
 	defer instanceIdMapConn_mx.Unlock()
 
-	log.Info(logContext, "is disconnecting")
-
-	conn, exists := instanceIdMapConn[instanceId]
-	if !exists || conn == nil {
-		return
-	}
-
-	conn.WriteMessage(websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-
-	conn.Close()
-	conn = nil
-
-	if keepsRunning {
-		config.SetInstanceToken(instanceId, "")
-		tray.SetConnected(instanceId, false)
-	}
-}
-
-func Shutdown() {
 	for instanceId, _ := range config.GetInstances() {
-		disconnect(instanceId, false)
+
+		conn, exists := instanceIdMapConn[instanceId]
+		if !exists || conn == nil {
+			continue
+		}
+
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+
+		conn.Close()
 	}
 }
 
@@ -103,12 +91,22 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
+			// connection closed, abort
 			if conn == nil {
-				continue
+				return
 			}
-			log.Error(logContext, "failed to read message", err)
-			disconnect(instanceId, true)
-			continue
+
+			// connection error, close
+			log.Error(logContext, "encountered read error, closing connection", err)
+
+			config.SetInstanceToken(instanceId, "")
+			tray.SetConnected(instanceId, false)
+
+			instanceIdMapConn_mx.Lock()
+			conn.Close()
+			delete(instanceIdMapConn, instanceId)
+			instanceIdMapConn_mx.Unlock()
+			return
 		}
 		log.Info(logContext, fmt.Sprintf("received: %s", message))
 

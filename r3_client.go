@@ -116,5 +116,5 @@ func onExit() {
 	lock.Release()
 	job.Stop()
 	file.WatcherStop()
-	websocket.Shutdown()
+	websocket.DisconnectAll()
 }
