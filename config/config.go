@@ -16,12 +16,14 @@ import (
 var (
 	access_mx = &sync.Mutex{}
 
-	appVersion  string
-	file        types.ConfigFile // config file
-	fileName    = "r3_client.conf"
-	pathApp     string // application path
-	pathUser    string // user home path
-	pathHomedir string
+	appVersion    string
+	file          types.ConfigFile         // config file
+	fileName      = "r3_client.conf"       // config file name
+	fileNameCache = "r3_client_files.json" // file cache file name
+	fileNameLog   = "r3_client.log"        // log file name
+	pathApp       string                   // application path
+	pathUser      string                   // user home path
+	pathHomedir   string                   // user home dir path
 
 	instanceIdMapToken = make(map[uuid.UUID]string) // map of instance JWTs, key: instance ID
 )

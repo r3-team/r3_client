@@ -46,7 +46,7 @@ func onReady() {
 	// define application user directory (create if required)
 	var appDir string
 	switch runtime.GOOS {
-	case "linux":
+	case "darwin", "linux":
 		appDir = filepath.Join(userDir, ".r3")
 	case "windows":
 		appDir = filepath.Join(userDir, "AppData", "Local", "r3")
@@ -70,8 +70,8 @@ func onReady() {
 	// define paths
 	config.SetPathApp(appDir)
 	config.SetPathUser(userDir)
-	file.SetFilePathCache(filepath.Join(appDir, "r3_client_files.json"))
-	log.SetFilePath(filepath.Join(appDir, "r3_client.log"))
+	file.SetFilePathCache(filepath.Join(appDir, config.GetFileNameCache()))
+	log.SetFilePath(filepath.Join(appDir, config.GetFileNameLog()))
 
 	// check whether another instance of the application is running
 	if err := lock.GetExclusive(); err != nil {

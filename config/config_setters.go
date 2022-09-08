@@ -14,6 +14,12 @@ func SetAutoStart(v bool) {
 
 	file.AutoStart = v
 }
+func SetDarkIcon(v bool) {
+	access_mx.Lock()
+	defer access_mx.Unlock()
+
+	file.DarkIcon = v
+}
 func SetDebug(v bool) {
 	access_mx.Lock()
 	defer access_mx.Unlock()

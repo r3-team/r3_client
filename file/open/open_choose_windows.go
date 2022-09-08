@@ -27,8 +27,6 @@ func chooseApp(filePath string) error {
 		pcszFile:    filePathPtr,
 		oaifInFlags: 4,
 	}
-	if _, _, err := procOpenWith.Call(0, uintptr(unsafe.Pointer(&data))); err != nil {
-		return err
-	}
-	return nil
+	_, _, err = procOpenWith.Call(0, uintptr(unsafe.Pointer(&data)))
+	return err
 }

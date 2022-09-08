@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"r3_client/config"
+	"syscall"
 )
 
 const (
@@ -34,9 +35,11 @@ func createLnk(filePathLnk string, filePathBin string) error {
 	if err != nil {
 		return err
 	}
-	return exec.Command(psCmd, []string{
+	cmd := exec.Command(psCmd, []string{
 		"-NoProfile",
 		"-NonInteractive",
 		fmt.Sprintf(psScript, filePathLnk, filePathBin),
-	}...).Run()
+	}...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	return cmd.Run()
 }

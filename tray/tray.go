@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"r3_client/config"
 	"r3_client/file/open"
+	"r3_client/icon"
+	"r3_client/icon/dark"
 	"r3_client/install"
 	"r3_client/log"
 	"r3_client/types"
@@ -49,6 +51,10 @@ var (
 			"de_de": "Logs öffnen",
 			"en_us": "Open logs",
 		},
+		"darkIcon": map[string]string{
+			"de_de": "Dunkles Icon",
+			"en_us": "Dark icon",
+		},
 		"startup": map[string]string{
 			"de_de": "Autostart",
 			"en_us": "Auto start",
@@ -81,6 +87,7 @@ var (
 	mFile4       *systray.MenuItem
 	mConfig      *systray.MenuItem
 	mLogs        *systray.MenuItem
+	mDarkIcon    *systray.MenuItem
 	mStartup     *systray.MenuItem
 	mSsl         *systray.MenuItem
 	mSslVerify   *systray.MenuItem
@@ -91,7 +98,7 @@ var (
 func SetDefaults() {
 	access_mx.Lock()
 	title = fmt.Sprintf("%s (%s)", items["title"][config.GetLanguageCode()], config.GetAppVersion())
-	systray.SetTitle(title)
+	systray.SetTitle("")
 	access_mx.Unlock()
 	updateIcon()
 }
@@ -164,6 +171,7 @@ func FillMenu() {
 
 	// toggle actions
 	systray.AddSeparator()
+	mDarkIcon = systray.AddMenuItemCheckbox(items["darkIcon"][lang], "", config.GetDarkIcon())
 	mStartup = systray.AddMenuItemCheckbox(items["startup"][lang], "", config.GetAutoStart())
 	mSsl = systray.AddMenuItemCheckbox(items["ssl"][lang], "", config.GetSsl())
 	mSslVerify = systray.AddMenuItemCheckbox(items["sslVerify"][lang], "", config.GetSslVerify())
@@ -194,9 +202,22 @@ func FillMenu() {
 			case <-mFile4.ClickedCh:
 				openFile(4)
 			case <-mConfig.ClickedCh:
-				open.WithLocalSystem(filepath.Join(config.GetPathApp(), config.GetFileName()), false)
+				open.WithLocalSystem(filepath.Join(config.GetPathApp(),
+					config.GetFileName()), false)
 			case <-mLogs.ClickedCh:
-				open.WithLocalSystem(filepath.Join(config.GetPathApp(), "client.log"), false)
+				open.WithLocalSystem(filepath.Join(config.GetPathApp(),
+					config.GetFileNameLog()), false)
+			case <-mDarkIcon.ClickedCh:
+				config.SetDarkIcon(!config.GetDarkIcon())
+				if err := config.WriteFile(); err != nil {
+					continue
+				}
+				updateIcon()
+				if config.GetDarkIcon() {
+					mDarkIcon.Check()
+				} else {
+					mDarkIcon.Uncheck()
+				}
 			case <-mStartup.ClickedCh:
 				config.SetAutoStart(!config.GetAutoStart())
 				if err := config.WriteFile(); err != nil {
@@ -257,5 +278,51 @@ func openFile(fileIndex int) {
 	f := filesShow[fileIndex]
 	if err := open.WithLocalSystem(filepath.Join(os.TempDir(), f.DirName, f.FileName), false); err != nil {
 		log.Error(logContext, "failed to open file", err)
+	}
+}
+
+func updateIcon() {
+	access_mx.Lock()
+	defer access_mx.Unlock()
+
+	darkIcon := config.GetDarkIcon()
+
+	// 1st prio: any instance not connected
+	for _, connected := range instanceIdMapConnected {
+		if !connected {
+			if darkIcon {
+				systray.SetIcon(dark.Down)
+			} else {
+				systray.SetIcon(icon.Down)
+			}
+			return
+		}
+	}
+
+	// 2nd prio: uploading
+	if isLoadingUp {
+		if darkIcon {
+			systray.SetIcon(dark.Upload)
+		} else {
+			systray.SetIcon(icon.Upload)
+		}
+		return
+	}
+
+	// 3rd prio: downloading
+	if isLoadingDown {
+		if darkIcon {
+			systray.SetIcon(dark.Download)
+		} else {
+			systray.SetIcon(icon.Download)
+		}
+		return
+	}
+
+	// if nothing else: neutral
+	if darkIcon {
+		systray.SetIcon(dark.Neutral)
+	} else {
+		systray.SetIcon(icon.Neutral)
 	}
 }

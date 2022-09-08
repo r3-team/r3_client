@@ -40,6 +40,11 @@ func GetAutoStart() bool {
 
 	return file.AutoStart
 }
+func GetDarkIcon() bool {
+	access_mx.Lock()
+	defer access_mx.Unlock()
+	return file.DarkIcon
+}
 func GetDebug() bool {
 	access_mx.Lock()
 	defer access_mx.Unlock()
@@ -47,6 +52,12 @@ func GetDebug() bool {
 }
 func GetFileName() string {
 	return fileName
+}
+func GetFileNameCache() string {
+	return fileNameCache
+}
+func GetFileNameLog() string {
+	return fileNameLog
 }
 func GetInstance(instanceId uuid.UUID) (types.Instance, error) {
 	access_mx.Lock()

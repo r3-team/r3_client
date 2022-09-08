@@ -38,5 +38,5 @@ func getFilePathLnk() string {
 	return filepath.Join(dir, "autostart", lnkName)
 }
 func createLnk(filePathLnk string, filePathBin string) error {
-	return os.WriteFile(filePathLnk, []byte(fmt.Sprintf(desktopFile, filePathBin)), 0644)
+	return os.WriteFile(filePathLnk, []byte(fmt.Sprintf(desktopFile, filePathBin)), 0755)
 }
