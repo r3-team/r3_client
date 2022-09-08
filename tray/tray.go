@@ -223,7 +223,7 @@ func FillMenu() {
 				if err := config.WriteFile(); err != nil {
 					continue
 				}
-				if err := install.App(); err != nil {
+				if err := install.AutoStart(); err != nil {
 					continue
 				}
 				if config.GetAutoStart() {

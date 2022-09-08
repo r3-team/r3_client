@@ -23,7 +23,6 @@ func App() error {
 	}
 	filePathBin := getFilePathBin()
 	filePathCnf := getFilePathCnf()
-	filePathLnk := getFilePathLnk()
 
 	if filepath.Dir(filePathBinNow) != filepath.Dir(filePathBin) {
 		// app is started outside of its directory
@@ -56,33 +55,44 @@ func App() error {
 			}
 		}
 
-		// copy config file, if within the same directory
-		currDir := filepath.Dir(filePathBinNow)
-		filePathCnfCurrDir := filepath.Join(currDir, config.GetFileName())
-
-		exists, err = tools.Exists(filePathCnfCurrDir)
+		// copy config file, if none is set yet
+		exists, err = tools.Exists(filePathCnf)
 		if err != nil {
 			return err
 		}
 		if exists {
-			// only copy config file, if target file does not exist
-			exists, err = tools.Exists(filePathCnf)
+			return nil
+		}
+
+		// check: Directory of binary and user download directory (Windows/MacOS at least)
+		paths := []string{
+			filepath.Join(filepath.Dir(filePathBinNow), config.GetFileName()),
+			filepath.Join(config.GetPathUser(), "Downloads", config.GetFileName()),
+		}
+		for _, path := range paths {
+			exists, err = tools.Exists(path)
 			if err != nil {
 				return err
 			}
 			if !exists {
-				if err := tools.FileCopy(filePathCnfCurrDir, filePathCnf, false); err != nil {
-					return err
-				}
-				if err := config.ReadFile(); err != nil {
-					return err
-				}
+				continue
 			}
-
+			if err := tools.FileCopy(path, filePathCnf, false); err != nil {
+				return err
+			}
+			if err := config.ReadFile(); err != nil {
+				return err
+			}
+			break
 		}
 	}
+	return nil
+}
 
-	// install/deinstall auto start
+func AutoStart() error {
+	filePathBin := getFilePathBin()
+	filePathLnk := getFilePathLnk()
+
 	exists, err := tools.Exists(filePathLnk)
 	if err != nil {
 		return err
@@ -103,7 +113,6 @@ func App() error {
 		return os.Remove(filePathLnk)
 	}
 	return nil
-
 }
 
 func copyApp(pathSrc string, pathDst string) error {

@@ -79,7 +79,7 @@ func onReady() {
 		return
 	}
 
-	// install application, app should start regardless of error during installation
+	// install application, errors should not block execution
 	if err := install.App(); err != nil {
 		log.Error(logContext, "failed to install application", err)
 	}
@@ -92,6 +92,11 @@ func onReady() {
 
 	// apply logging settings from config file
 	log.SetDebug(config.GetDebug())
+
+	// set auto start, errors should not block execution
+	if err := install.AutoStart(); err != nil {
+		log.Error(logContext, "failed to setup auto start", err)
+	}
 
 	// fill system tray
 	tray.SetDefaults()
