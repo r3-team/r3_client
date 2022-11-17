@@ -1,5 +1,5 @@
 # REI3 client
-This repo hosts the currently unreleased [REI3](https://github.com/r3-team/r3) fat client - it is currently work-in-progress.
+This repo hosts the [REI3](https://github.com/r3-team/r3) fat client - it is currently work-in-progress.
 
 The fat client will be part of a future REI3 release. It will serve to extend the capabilities of REI3 on local devices - primarily local file handling.
 
