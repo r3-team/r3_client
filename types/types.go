@@ -16,19 +16,30 @@ type FilesSaved struct {
 }
 
 // configuration file
+type Action struct {
+	Action string `json:"action"`
+	Hotkey struct {
+		Active    bool   `json:"active"`
+		Char      string `json:"char"`      // a-Z, 0-9
+		Modifier1 string `json:"modifier1"` // CTRL, ALT, SHIFT
+		Modifier2 string `json:"modifier2"` // CTRL, ALT, SHIFT
+	} `json:"hotkey"`
+	JsFunctionId uuid.UUID `json:"jsFunctionId"`
+}
 type Instance struct {
-	DeviceName string `json:"deviceName"`
-	HostName   string `json:"hostName"`
-	HostPort   int    `json:"hostPort"`
-	LoginId    int64  `json:"loginId"`
-	TokenFixed string `json:"tokenFixed"`
+	Actions    []Action `json:"actions"`
+	DeviceName string   `json:"deviceName"`
+	HostName   string   `json:"hostName"`
+	HostPort   int      `json:"hostPort"`
+	LoginId    int64    `json:"loginId"`
+	TokenFixed string   `json:"tokenFixed"`
 }
 type ConfigFile struct {
 	AutoStart    bool                   `json:"autoStart"`
 	DarkIcon     bool                   `json:"darkIcon"`
 	Debug        bool                   `json:"debug"`
 	Instances    map[uuid.UUID]Instance `json:"instances"`
-	KeepFilesSec int64                  `json:"keepFilesSec`
+	KeepFilesSec int64                  `json:"keepFilesSec"`
 	LanguageCode string                 `json:"languageCode"`
 	Ssl          bool                   `json:"ssl"`
 	SslVerify    bool                   `json:"sslVerify"`

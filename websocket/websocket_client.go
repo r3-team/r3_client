@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 
 	"r3_client/config"
@@ -42,14 +43,16 @@ func Connect() error {
 			scheme = "ws"
 		}
 
+		header := http.Header{}
+		header.Add("User-Agent", "r3-client-fat")
+
 		tlsConfig := config.GetTlsConfig()
 		dialer := websocket.Dialer{
 			TLSClientConfig: &tlsConfig,
 		}
 
 		var err error
-		conn, _, err = dialer.Dial(fmt.Sprintf("%s://%s:%d/websocket",
-			scheme, inst.HostName, inst.HostPort), nil)
+		conn, _, err = dialer.Dial(fmt.Sprintf("%s://%s:%d/websocket", scheme, inst.HostName, inst.HostPort), header)
 
 		// update system tray
 		tray.SetConnected(instanceId, err == nil)
