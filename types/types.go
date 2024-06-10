@@ -1,6 +1,8 @@
 package types
 
-import "github.com/gofrs/uuid"
+import (
+	"github.com/gofrs/uuid"
+)
 
 // handled files
 type File struct {
@@ -17,14 +19,16 @@ type FilesSaved struct {
 
 // configuration file
 type Action struct {
-	Action string `json:"action"`
 	Hotkey struct {
 		Active    bool   `json:"active"`
 		Char      string `json:"char"`      // a-Z, 0-9
 		Modifier1 string `json:"modifier1"` // CTRL, ALT, SHIFT
 		Modifier2 string `json:"modifier2"` // CTRL, ALT, SHIFT
 	} `json:"hotkey"`
-	JsFunctionId uuid.UUID `json:"jsFunctionId"`
+
+	// callback function
+	JsFunctionArgs []string      `json:"jsFunctionArgs"` // arguments to deliver to callback function, in order
+	JsFunctionId   uuid.NullUUID `json:"jsFunctionId"`   // JS function to call inside the browser session
 }
 type Instance struct {
 	Actions    []Action `json:"actions"`

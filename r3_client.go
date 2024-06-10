@@ -8,9 +8,9 @@ import (
 
 	"r3_client/config"
 	"r3_client/file"
-	"r3_client/hotkey"
 	"r3_client/install"
 	"r3_client/job"
+	"r3_client/keyboard/keyboard_listen"
 	"r3_client/lock"
 	"r3_client/log"
 	"r3_client/tools"
@@ -115,7 +115,7 @@ func onReady() {
 	}
 
 	// start hotkey handler
-	go hotkey.LoadAndListen()
+	go keyboard_listen.Start()
 
 	// start regular jobs
 	go job.Start()
@@ -125,6 +125,6 @@ func onExit() {
 	lock.Release()
 	job.Stop()
 	file.WatcherStop()
-	hotkey.Stop()
+	keyboard_listen.Stop()
 	websocket.DisconnectAll()
 }
