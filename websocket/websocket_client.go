@@ -9,6 +9,7 @@ import (
 
 	"r3_client/config"
 	"r3_client/file"
+	"r3_client/keyboard/keyboard_type"
 	"r3_client/log"
 	"r3_client/tools"
 	"r3_client/tray"
@@ -148,6 +149,13 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 					log.Error(logContext, "failed to open file", err)
 					continue
 				}
+			case "keystrokesDo":
+				var resPayload types.UnreqResponsePayloadKeystrokesDo
+				if err := json.Unmarshal(resUnreq.Responses[0].Payload, &resPayload); err != nil {
+					log.Error(logContext, "failed to unmarshal unrequested response payload", err)
+					continue
+				}
+				keyboard_type.Do(resPayload.Strokes)
 			}
 			continue
 		}

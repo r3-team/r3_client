@@ -45,6 +45,9 @@ type UnreqResponsePayloadFileRequested struct {
 	FileHash    string    `json:"fileHash"`
 	FileName    string    `json:"fileName"`
 }
+type UnreqResponsePayloadKeystrokesDo struct {
+	Strokes string `json:"strokes"`
+}
 type RequestPayloadLogin struct {
 	LoginId    int64  `json:"loginId"`
 	TokenFixed string `json:"tokenFixed"`

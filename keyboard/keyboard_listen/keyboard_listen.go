@@ -105,8 +105,8 @@ func executeJsFunction(instanceId uuid.UUID, args []string, jsFunctionId uuid.UU
 	// send request to browser session
 	return websocket.Send(instanceId, []types.Request{
 		{
-			Ressource: "fatClient",
-			Action:    "jsFunctionCalled",
+			Ressource: "device",
+			Action:    "browserCallJsFunction",
 			Payload:   payloadJson,
 		},
 	})
