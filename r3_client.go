@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"syscall"
 
 	"r3_client/config"
+	"r3_client/event"
 	"r3_client/file"
 	"r3_client/install"
 	"r3_client/job"
@@ -15,13 +18,14 @@ import (
 	"r3_client/log"
 	"r3_client/tools"
 	"r3_client/tray"
-	"r3_client/websocket"
+	"r3_client/websocket/connection"
 
 	"fyne.io/systray"
 )
 
 var (
 	logContext = "system"
+	osExit     = make(chan os.Signal)
 
 	// overwritten by build parameters
 	appVersion = "0.1.2.3"
@@ -29,6 +33,14 @@ var (
 
 func main() {
 	config.SetAppVersion(appVersion)
+
+	// listen to global shutdown channel
+	signal.Notify(osExit, syscall.SIGTERM)
+	go func() {
+		<-osExit
+		onExit()
+	}()
+
 	systray.Run(onReady, onExit)
 }
 func quitWithErr(message string, err error) {
@@ -114,9 +126,6 @@ func onReady() {
 		return
 	}
 
-	// start hotkey handler
-	go keyboard_listen.Start()
-
 	// start regular jobs
 	go job.Start()
 }
@@ -126,5 +135,9 @@ func onExit() {
 	job.Stop()
 	file.WatcherStop()
 	keyboard_listen.Stop()
-	websocket.DisconnectAll()
+
+	for instanceId := range config.GetInstances() {
+		event.ExecuteEvents(instanceId, "onDisconnect")
+	}
+	connection.DisconnectAll()
 }

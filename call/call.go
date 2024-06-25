@@ -5,7 +5,7 @@ import (
 	"r3_client/config"
 	"r3_client/log"
 	"r3_client/types"
-	"r3_client/websocket"
+	"r3_client/websocket/send"
 )
 
 var logContext = "authentication"
@@ -29,13 +29,11 @@ func Authenticate() error {
 		}
 
 		// send transaction
-		if err := websocket.Send(instanceId, []types.Request{
-			types.Request{
-				Ressource: "auth",
-				Action:    "tokenFixed",
-				Payload:   payloadJson,
-			},
-		}); err != nil {
+		if err := send.Do(instanceId, []types.Request{{
+			Ressource: "auth",
+			Action:    "tokenFixed",
+			Payload:   payloadJson,
+		}}); err != nil {
 			log.Error(logContext, "failed to send websocket request", err)
 			continue
 		}

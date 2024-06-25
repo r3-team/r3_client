@@ -12,11 +12,10 @@ import (
 )
 
 type job struct {
-	fn             func() error
-	fnAfterSuccess func() error
-	intervalSec    int64
-	lastRan        int64
-	logName        string
+	fn          func() error
+	intervalSec int64
+	lastRan     int64
+	logName     string
 }
 
 var (
@@ -72,7 +71,7 @@ func Start() {
 			if err := j.fn(); err != nil {
 				log.Error("job", fmt.Sprintf("'%s' failed", j.logName), err)
 			} else {
-				log.Info("job", fmt.Sprintf("'%s' succeeded", j.logName))
+				log.Info("job", fmt.Sprintf("'%s' ran", j.logName))
 			}
 			jobs[i].lastRan = now
 		}
@@ -82,6 +81,6 @@ func Start() {
 
 func Stop() {
 	running_mx.Lock()
-	defer running_mx.Unlock()
 	running = false
+	running_mx.Unlock()
 }

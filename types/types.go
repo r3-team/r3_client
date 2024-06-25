@@ -18,25 +18,24 @@ type FilesSaved struct {
 }
 
 // configuration file
-type Action struct {
-	Hotkey struct {
-		Active    bool   `json:"active"`
-		Char      string `json:"char"`      // a-Z, 0-9
-		Modifier1 string `json:"modifier1"` // CTRL, ALT, SHIFT
-		Modifier2 string `json:"modifier2"` // CTRL, ALT, SHIFT
-	} `json:"hotkey"`
+type Event struct {
+	Action          string `json:"action"`          // callJsFunction
+	Event           string `json:"event"`           // onHotkey, onConnect, onDisconnect
+	HotkeyModifier1 string `json:"hotkeyModifier1"` // CTRL, ALT, SHIFT
+	HotkeyModifier2 string `json:"hotkeyModifier2"` // CTRL, ALT, SHIFT
+	HotkeyChar      string `json:"hotkeyChar"`      // a-Z, 0-9
 
-	// callback function
-	JsFunctionArgs []string      `json:"jsFunctionArgs"` // arguments to deliver to callback function, in order
+	// for action: callJsFunction
+	JsFunctionArgs []string      `json:"jsFunctionArgs"` // arguments to deliver to callback function, in order (clipboard, hostname, username, windowTitle)
 	JsFunctionId   uuid.NullUUID `json:"jsFunctionId"`   // JS function to call inside the browser session
 }
 type Instance struct {
-	Actions    []Action `json:"actions"`
-	DeviceName string   `json:"deviceName"`
-	HostName   string   `json:"hostName"`
-	HostPort   int      `json:"hostPort"`
-	LoginId    int64    `json:"loginId"`
-	TokenFixed string   `json:"tokenFixed"`
+	DeviceName string  `json:"deviceName"`
+	Events     []Event `json:"events"`
+	HostName   string  `json:"hostName"`
+	HostPort   int     `json:"hostPort"`
+	LoginId    int64   `json:"loginId"`
+	TokenFixed string  `json:"tokenFixed"`
 }
 type ConfigFile struct {
 	AutoStart    bool                   `json:"autoStart"`

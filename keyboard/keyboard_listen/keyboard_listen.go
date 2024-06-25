@@ -1,51 +1,57 @@
 package keyboard_listen
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
-	"os/user"
-	"r3_client/config"
+	"r3_client/event/action"
 	"r3_client/log"
 	"r3_client/types"
-	"r3_client/websocket"
+	"strings"
+	"sync/atomic"
+	"time"
 
-	"github.com/go-vgo/robotgo"
-	"github.com/go-vgo/robotgo/clipboard"
 	"github.com/gofrs/uuid"
 	hook "github.com/robotn/gohook"
 )
 
 var (
 	logContext string = "hotkey"
+	running    atomic.Bool
 )
 
-func Start() {
-	instances := config.GetInstances()
+func Start(instanceIdMapEvents map[uuid.UUID][]types.Event) {
 
-	// collect all hotkey actions for all instances
-	for instanceId, instance := range instances {
-		for _, action := range instance.Actions {
-			if !action.Hotkey.Active {
+	if running.Load() {
+		hook.End()
+		time.Sleep(time.Millisecond * 100)
+	}
+
+	running.Store(true)
+	defer running.Store(false)
+
+	// collect all hotkey events for all instances
+	for instanceId, events := range instanceIdMapEvents {
+
+		for _, event := range events {
+			if event.Event != "onHotkey" {
 				continue
 			}
 
 			keys := make([]string, 0)
 
-			if action.Hotkey.Modifier1 != "" {
-				keys = append(keys, action.Hotkey.Modifier1)
+			if event.HotkeyModifier1 != "" {
+				keys = append(keys, strings.ToLower(event.HotkeyModifier1))
 			}
-			if action.Hotkey.Modifier2 != "" {
-				keys = append(keys, action.Hotkey.Modifier2)
+			if event.HotkeyModifier2 != "" {
+				keys = append(keys, strings.ToLower(event.HotkeyModifier2))
 			}
-			keys = append(keys, action.Hotkey.Char)
+			keys = append(keys, strings.ToLower(event.HotkeyChar))
 
 			hook.Register(hook.KeyDown, keys, func(e hook.Event) {
 				log.Info(logContext, fmt.Sprintf("reacting to hotkey %s\n", keys))
 
 				// execute callback function if used
-				if action.JsFunctionId.Valid {
-					if err := executeJsFunction(instanceId, action.JsFunctionArgs, action.JsFunctionId.UUID); err != nil {
+				if event.Action == "callJsFunction" && event.JsFunctionId.Valid {
+					if err := action.CallFunction(instanceId, event.JsFunctionArgs, event.JsFunctionId.UUID); err != nil {
 						log.Error(logContext, "failed to execute action on hotkey", err)
 					}
 				}
@@ -53,61 +59,11 @@ func Start() {
 			})
 		}
 	}
+
 	s := hook.Start()
 	<-hook.Process(s)
 }
 
 func Stop() {
 	hook.End()
-}
-
-func executeJsFunction(instanceId uuid.UUID, args []string, jsFunctionId uuid.UUID) error {
-	argValues := make([]interface{}, 0)
-
-	for _, arg := range args {
-		var err error
-		var value interface{}
-		switch arg {
-		case "clipboard":
-			value, err = clipboard.ReadAll()
-			if err != nil {
-				return err
-			}
-		case "hostname":
-			value, err = os.Hostname()
-			if err != nil {
-				return err
-			}
-		case "username":
-			user, err := user.Current()
-			if err != nil {
-				return err
-			}
-			value = user.Username
-		case "windowTitle":
-			value = robotgo.GetTitle()
-		default:
-			value = nil
-		}
-		argValues = append(argValues, value)
-	}
-
-	// prepare request
-	payload := types.RequestPayloadJsFunctionCall{
-		JsFunctionId: jsFunctionId,
-		Arguments:    argValues,
-	}
-	payloadJson, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	// send request to browser session
-	return websocket.Send(instanceId, []types.Request{
-		{
-			Ressource: "device",
-			Action:    "browserCallJsFunction",
-			Payload:   payloadJson,
-		},
-	})
 }

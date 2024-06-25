@@ -4,91 +4,39 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"sync"
 
 	"r3_client/config"
+	"r3_client/event"
 	"r3_client/file"
 	"r3_client/keyboard/keyboard_type"
 	"r3_client/log"
-	"r3_client/tools"
 	"r3_client/tray"
 	"r3_client/types"
+	"r3_client/websocket/connection"
+	"r3_client/websocket/send"
+	"r3_client/websocket/transaction"
 
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 )
 
 var (
-	logContext           = "websocket"
-	instanceIdMapConn    = make(map[uuid.UUID]*websocket.Conn) // map of websocket connections, key: instance ID
-	instanceIdMapConn_mx = sync.Mutex{}
-	transactionNrMap     = make(map[uint64]types.RequestTransaction)
-	transactionNrMap_mx  = sync.Mutex{}
+	logContext = "websocket"
 )
 
 // connect to all known instances via websocket
 func Connect() error {
-	for instanceId, inst := range config.GetInstances() {
+	for instanceId, instance := range config.GetInstances() {
 
-		instanceIdMapConn_mx.Lock()
-		conn, connExists := instanceIdMapConn[instanceId]
-		instanceIdMapConn_mx.Unlock()
-
-		if connExists && conn != nil {
-			continue
-		}
-
-		scheme := "wss"
-		if !config.GetSsl() {
-			scheme = "ws"
-		}
-
-		header := http.Header{}
-		header.Add("User-Agent", "r3-client-fat")
-
-		tlsConfig := config.GetTlsConfig()
-		dialer := websocket.Dialer{
-			TLSClientConfig: &tlsConfig,
-		}
-
-		var err error
-		conn, _, err = dialer.Dial(fmt.Sprintf("%s://%s:%d/websocket", scheme, inst.HostName, inst.HostPort), header)
-
-		// update system tray
-		tray.SetConnected(instanceId, err == nil)
-
+		conn, err := connection.Connect(instanceId, instance)
 		if err != nil {
-			log.Warning(logContext, "failed to connect", err)
+			log.Error(logContext, fmt.Sprintf("failed to connect to instance '%s'", instanceId), err)
 			continue
 		}
 
-		instanceIdMapConn_mx.Lock()
-		instanceIdMapConn[instanceId] = conn
-		instanceIdMapConn_mx.Unlock()
 		go handleReceived(instanceId, conn)
 	}
 	return nil
-}
-
-func DisconnectAll() {
-	log.Info(logContext, "is closing all connections")
-
-	instanceIdMapConn_mx.Lock()
-	defer instanceIdMapConn_mx.Unlock()
-
-	for instanceId, _ := range config.GetInstances() {
-
-		conn, exists := instanceIdMapConn[instanceId]
-		if !exists || conn == nil {
-			continue
-		}
-
-		conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-
-		conn.Close()
-	}
 }
 
 func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
@@ -105,11 +53,7 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 
 			config.SetInstanceToken(instanceId, "")
 			tray.SetConnected(instanceId, false)
-
-			instanceIdMapConn_mx.Lock()
-			conn.Close()
-			delete(instanceIdMapConn, instanceId)
-			instanceIdMapConn_mx.Unlock()
+			connection.Disconnect(instanceId, conn, true)
 			return
 		}
 		log.Info(logContext, fmt.Sprintf("received: %s", message))
@@ -135,6 +79,8 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 			}
 
 			switch resUnreq.Responses[0].Ressource {
+			case "clientEventsChanged":
+				requestClientEvents(instanceId)
 			case "fileRequested":
 				var resPayload types.UnreqResponsePayloadFileRequested
 				if err := json.Unmarshal(resUnreq.Responses[0].Payload, &resPayload); err != nil {
@@ -161,14 +107,12 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 		}
 
 		// check if transaction was sent out
-		transactionNrMap_mx.Lock()
-		trans, exists := transactionNrMap[res.TransactionNr]
-		transactionNrMap_mx.Unlock()
-
+		trans, exists := transaction.Get(res.TransactionNr)
 		if !exists {
 			log.Error(logContext, "response invalid", errors.New("transaction not recognized"))
 			continue
 		}
+		transaction.Deregister(trans.TransactionNr)
 
 		// process authentication messages
 		if isAuthTransaction(trans) {
@@ -178,50 +122,41 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 				continue
 			}
 			config.SetInstanceToken(instanceId, resPayload.Token)
+
+			// get client events after successful authentication
+			requestClientEvents(instanceId)
 			continue
 		}
 
 		// process regular messages
-		// ... nothing yet
-	}
-}
-
-func Send(instanceId uuid.UUID, requests []types.Request) error {
-
-	conn, exists := instanceIdMapConn[instanceId]
-	if !exists || conn == nil {
-		return fmt.Errorf("websocket connection is closed")
-	}
-
-	transactionNrMap_mx.Lock()
-	defer transactionNrMap_mx.Unlock()
-
-	// create transaction
-	trans := types.RequestTransaction{
-		Requests: requests,
-	}
-
-	// register transaction (for handling response later)
-	var number uint64
-	for true {
-		number = uint64(tools.RandNumber(100000, 499999))
-
-		if _, exists := transactionNrMap[number]; !exists {
-			trans.TransactionNr = number
-			transactionNrMap[number] = trans
-			break
+		for i, req := range trans.Requests {
+			switch req.Ressource {
+			case "clientEvent":
+				switch req.Action {
+				case "get":
+					var resPayload []types.Event
+					if err := json.Unmarshal(res.Responses[i].Payload, &resPayload); err != nil {
+						log.Error(logContext, "failed to unmarshal response payload", err)
+						continue
+					}
+					event.SetByInstanceId(instanceId, resPayload)
+					event.ExecuteEvents(instanceId, "onConnect")
+				}
+			}
 		}
 	}
-
-	// send message as JSON
-	transJson, err := json.Marshal(trans)
-	if err != nil {
-		return err
-	}
-	log.Info(logContext, fmt.Sprintf("sends: %s", transJson))
-	return conn.WriteMessage(websocket.TextMessage, transJson)
 }
 
 func isAuthTransaction(t types.RequestTransaction) bool {
 	return len(t.Requests) == 1 && t.Requests[0].Ressource == "auth"
+}
+
+func requestClientEvents(instanceId uuid.UUID) {
+	if err := send.Do(instanceId, []types.Request{{
+		Ressource: "clientEvent",
+		Action:    "get",
+		Payload:   nil,
+	}}); err != nil {
+		log.Error(logContext, "failed to send websocket request", err)
+	}
 }
