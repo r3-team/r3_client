@@ -49,13 +49,9 @@ func Start(instanceIdMapEvents map[uuid.UUID][]types.Event) {
 			hook.Register(hook.KeyDown, keys, func(e hook.Event) {
 				log.Info(logContext, fmt.Sprintf("reacting to hotkey %s\n", keys))
 
-				// execute callback function if used
-				if event.Action == "callJsFunction" && event.JsFunctionId.Valid {
-					if err := action.CallFunction(instanceId, event.JsFunctionArgs, event.JsFunctionId.UUID); err != nil {
-						log.Error(logContext, "failed to execute action on hotkey", err)
-					}
+				if err := action.Do(instanceId, event); err != nil {
+					log.Error(logContext, "failed to execute client event action 'onHotkey'", err)
 				}
-
 			})
 		}
 	}

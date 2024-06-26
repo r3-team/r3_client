@@ -40,9 +40,9 @@ func SetByInstanceId(instanceId uuid.UUID, events []types.Event) {
 
 func ExecuteEvents(instanceId uuid.UUID, eventTarget string) {
 	access_mx.RLock()
-	defer access_mx.RUnlock()
-
 	events, exists := instanceIdMapEvents[instanceId]
+	access_mx.RUnlock()
+
 	if !exists {
 		return
 	}
@@ -50,9 +50,9 @@ func ExecuteEvents(instanceId uuid.UUID, eventTarget string) {
 	anyCall := false
 
 	for _, ev := range events {
-		if ev.Event == eventTarget && ev.Action == "callJsFunction" && ev.JsFunctionId.Valid {
-			if err := action.CallFunction(instanceId, ev.JsFunctionArgs, ev.JsFunctionId.UUID); err != nil {
-				log.Error(logContext, fmt.Sprintf("failed to execute %s", eventTarget), err)
+		if ev.Event == eventTarget {
+			if err := action.Do(instanceId, ev); err != nil {
+				log.Error(logContext, fmt.Sprintf("failed to execute client event action '%s'", eventTarget), err)
 			}
 			anyCall = true
 		}

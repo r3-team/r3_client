@@ -52,9 +52,9 @@ type RequestPayloadLogin struct {
 	LoginId    int64  `json:"loginId"`
 	TokenFixed string `json:"tokenFixed"`
 }
-type RequestPayloadJsFunctionCall struct {
-	JsFunctionId uuid.UUID     `json:"jsFunctionId"`
-	Arguments    []interface{} `json:"arguments"`
+type RequestPayloadClientEventExec struct {
+	Id        uuid.UUID     `json:"id"`
+	Arguments []interface{} `json:"arguments"`
 }
 type ResponsePayloadLogin struct {
 	LanguageCode string `json:"languageCode"`

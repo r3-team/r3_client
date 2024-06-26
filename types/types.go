@@ -19,15 +19,16 @@ type FilesSaved struct {
 
 // configuration file
 type Event struct {
-	Action          string `json:"action"`          // callJsFunction
-	Event           string `json:"event"`           // onHotkey, onConnect, onDisconnect
-	HotkeyModifier1 string `json:"hotkeyModifier1"` // CTRL, ALT, SHIFT
-	HotkeyModifier2 string `json:"hotkeyModifier2"` // CTRL, ALT, SHIFT
-	HotkeyChar      string `json:"hotkeyChar"`      // a-Z, 0-9
+	Id              uuid.UUID `json:"id"`
+	Action          string    `json:"action"`          // callJsFunction
+	Arguments       []string  `json:"arguments"`       // arguments to deliver to function, in order (clipboard, hostname, username, windowTitle)
+	Event           string    `json:"event"`           // onHotkey, onConnect, onDisconnect
+	HotkeyModifier1 string    `json:"hotkeyModifier1"` // CTRL, ALT, SHIFT
+	HotkeyModifier2 string    `json:"hotkeyModifier2"` // CTRL, ALT, SHIFT
+	HotkeyChar      string    `json:"hotkeyChar"`      // a-Z, 0-9
 
 	// for action: callJsFunction
-	JsFunctionArgs []string      `json:"jsFunctionArgs"` // arguments to deliver to callback function, in order (clipboard, hostname, username, windowTitle)
-	JsFunctionId   uuid.NullUUID `json:"jsFunctionId"`   // JS function to call inside the browser session
+	JsFunctionId uuid.NullUUID `json:"jsFunctionId"` // JS function to call inside the browser session
 }
 type Instance struct {
 	DeviceName string  `json:"deviceName"`

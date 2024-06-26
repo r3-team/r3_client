@@ -14,10 +14,16 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-func CallFunction(instanceId uuid.UUID, args []string, jsFunctionId uuid.UUID) error {
-	argValues := make([]interface{}, 0)
+func Do(instanceId uuid.UUID, clientEvent types.Event) error {
 
-	for _, arg := range args {
+	// block invalid executions
+	if clientEvent.Action == "callJsFunction" && !clientEvent.JsFunctionId.Valid {
+		return fmt.Errorf("no ID given for JS function call")
+	}
+
+	args := make([]interface{}, 0)
+
+	for _, arg := range clientEvent.Arguments {
 		var err error
 		var value interface{}
 		switch arg {
@@ -51,23 +57,22 @@ func CallFunction(instanceId uuid.UUID, args []string, jsFunctionId uuid.UUID) e
 		default:
 			return fmt.Errorf("unknown function parameter")
 		}
-		argValues = append(argValues, value)
+		args = append(args, value)
 	}
 
-	// prepare request
-	payload := types.RequestPayloadJsFunctionCall{
-		JsFunctionId: jsFunctionId,
-		Arguments:    argValues,
+	// send execution request to the server
+	payload := types.RequestPayloadClientEventExec{
+		Id:        clientEvent.Id,
+		Arguments: args,
 	}
 	payloadJson, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	// send request to browser session
 	return send.Do(instanceId, []types.Request{{
-		Ressource: "device",
-		Action:    "browserCallJsFunction",
+		Ressource: "clientEvent",
+		Action:    "exec",
 		Payload:   payloadJson,
 	}})
 }
