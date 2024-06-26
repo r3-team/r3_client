@@ -20,6 +20,9 @@ func Do(instanceId uuid.UUID, clientEvent types.Event) error {
 	if clientEvent.Action == "callJsFunction" && !clientEvent.JsFunctionId.Valid {
 		return fmt.Errorf("no ID given for JS function call")
 	}
+	if clientEvent.Action == "callPgFunction" && !clientEvent.PgFunctionId.Valid {
+		return fmt.Errorf("no ID given for PG function call")
+	}
 
 	args := make([]interface{}, 0)
 
