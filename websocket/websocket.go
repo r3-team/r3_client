@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 
 	"r3_client/config"
 	"r3_client/event"
@@ -22,6 +23,7 @@ import (
 )
 
 var (
+	read_mx    sync.RWMutex
 	logContext = "websocket"
 )
 
@@ -42,7 +44,10 @@ func Connect() error {
 
 func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 	for {
+		read_mx.Lock()
 		_, message, err := conn.ReadMessage()
+		read_mx.Unlock()
+
 		if err != nil {
 			// connection closed, abort
 			if conn == nil {
@@ -80,7 +85,7 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 			}
 
 			switch resUnreq.Responses[0].Ressource {
-			case "clientEventsChanged":
+			case "clientEventsChanged", "reauthorized":
 				requestClientEvents(instanceId)
 			case "fileRequested":
 				var resPayload types.UnreqResponsePayloadFileRequested
@@ -166,6 +171,7 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 					event.ExecuteOn(instanceId, "onConnect")
 
 					// refresh keyboard listeners on change
+					keyboard_listen.StopIfRunning()
 					go keyboard_listen.Start()
 				}
 			}

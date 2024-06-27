@@ -28,11 +28,6 @@ func getFncForEvent(keys []string, instanceId uuid.UUID, ev types.Event) func(ho
 }
 
 func Start() {
-	if running.Load() {
-		Stop()
-		time.Sleep(time.Millisecond * 100)
-	}
-
 	running.Store(true)
 	defer running.Store(false)
 
@@ -64,6 +59,9 @@ func Start() {
 	<-hook.Process(s)
 }
 
-func Stop() {
-	hook.End()
+func StopIfRunning() {
+	if running.Load() {
+		hook.End()
+		time.Sleep(time.Millisecond * 100)
+	}
 }

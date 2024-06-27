@@ -7,12 +7,14 @@ import (
 	"r3_client/types"
 	"r3_client/websocket/connection"
 	"r3_client/websocket/transaction"
+	"sync"
 
 	"github.com/gofrs/uuid"
 	"github.com/gorilla/websocket"
 )
 
 var (
+	write_mx   sync.RWMutex
 	logContext = "websocket"
 )
 
@@ -35,5 +37,8 @@ func Do(instanceId uuid.UUID, requests []types.Request) error {
 		return err
 	}
 	log.Info(logContext, fmt.Sprintf("sends: %s", transJson))
+
+	write_mx.Lock()
+	defer write_mx.Unlock()
 	return conn.WriteMessage(websocket.TextMessage, transJson)
 }

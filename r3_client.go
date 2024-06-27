@@ -138,6 +138,6 @@ func onExit() {
 	lock.Release()
 	job.Stop()
 	file.WatcherStop()
-	keyboard_listen.Stop()
+	keyboard_listen.StopIfRunning()
 	connection.DisconnectAll()
 }
