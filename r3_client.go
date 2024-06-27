@@ -131,13 +131,13 @@ func onReady() {
 }
 
 func onExit() {
+	for instanceId := range config.GetInstances() {
+		event.ExecuteOn(instanceId, "onDisconnect")
+	}
+
 	lock.Release()
 	job.Stop()
 	file.WatcherStop()
 	keyboard_listen.Stop()
-
-	for instanceId := range config.GetInstances() {
-		event.ExecuteEvents(instanceId, "onDisconnect")
-	}
 	connection.DisconnectAll()
 }

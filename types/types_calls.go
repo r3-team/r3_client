@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/gofrs/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // generic request types
@@ -59,4 +60,23 @@ type RequestPayloadClientEventExec struct {
 type ResponsePayloadLogin struct {
 	LanguageCode string `json:"languageCode"`
 	Token        string `json:"token"`
+}
+
+// client events
+type Event struct {
+	Id              uuid.UUID   `json:"id"`
+	Action          string      `json:"action"`          // callJsFunction, callPgFunction
+	Arguments       []string    `json:"arguments"`       // arguments to deliver to function, in order (clipboard, hostname, username, windowTitle)
+	Event           string      `json:"event"`           // onHotkey, onConnect, onDisconnect
+	HotkeyChar      string      `json:"hotkeyChar"`      // single character
+	HotkeyModifier1 string      `json:"hotkeyModifier1"` // ALT, CMD, CTRL, SHIFT
+	HotkeyModifier2 pgtype.Text `json:"hotkeyModifier2"` // ALT, CMD, CTRL, SHIFT (optional)
+	JsFunctionId    pgtype.UUID `json:"jsFunctionId"`    // JS function to call inside the browser session
+	PgFunctionId    pgtype.UUID `json:"pgFunctionId"`    // PG function to call on the server
+}
+type EventLogin struct {
+	// login client events exist if a login has enabled a hotkey client event
+	HotkeyChar      string      `json:"hotkeyChar"`      // single character
+	HotkeyModifier1 string      `json:"hotkeyModifier1"` // ALT, CMD, CTRL, SHIFT
+	HotkeyModifier2 pgtype.Text `json:"hotkeyModifier2"` // ALT, CMD, CTRL, SHIFT (optional)
 }

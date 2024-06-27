@@ -8,6 +8,7 @@ import (
 	"r3_client/config"
 	"r3_client/event"
 	"r3_client/file"
+	"r3_client/keyboard/keyboard_listen"
 	"r3_client/keyboard/keyboard_type"
 	"r3_client/log"
 	"r3_client/tray"
@@ -128,19 +129,44 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 			continue
 		}
 
-		// process regular messages
+		// process regular responses
 		for i, req := range trans.Requests {
 			switch req.Ressource {
 			case "clientEvent":
 				switch req.Action {
 				case "get":
-					var resPayload []types.Event
+					var resPayload struct {
+						ClientEvents          []types.Event                  `json:"clientEvents"`
+						ClientEventIdMapLogin map[uuid.UUID]types.EventLogin `json:"clientEventIdMapLogin"`
+					}
 					if err := json.Unmarshal(res.Responses[i].Payload, &resPayload); err != nil {
 						log.Error(logContext, "failed to unmarshal response payload", err)
 						continue
 					}
-					event.SetByInstanceId(instanceId, resPayload)
-					event.ExecuteEvents(instanceId, "onConnect")
+
+					// parse client events
+					clientEvents := make([]types.Event, 0)
+					for _, ce := range resPayload.ClientEvents {
+						if ce.Event != "onHotkey" {
+							clientEvents = append(clientEvents, ce)
+							continue
+						}
+
+						// hotkey events must be registered for the current login, apply hotkey overwrites
+						lce, exists := resPayload.ClientEventIdMapLogin[ce.Id]
+						if exists {
+							ce.HotkeyChar = lce.HotkeyChar
+							ce.HotkeyModifier1 = lce.HotkeyModifier1
+							ce.HotkeyModifier2 = lce.HotkeyModifier2
+							clientEvents = append(clientEvents, ce)
+						}
+					}
+
+					event.SetByInstanceId(instanceId, clientEvents)
+					event.ExecuteOn(instanceId, "onConnect")
+
+					// refresh keyboard listeners on change
+					go keyboard_listen.Start()
 				}
 			}
 		}

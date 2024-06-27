@@ -8,6 +8,7 @@ require (
 	github.com/go-vgo/robotgo v0.110.1
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gorilla/websocket v1.5.0
+	github.com/jackc/pgx/v5 v5.6.0
 	github.com/robotn/gohook v0.41.0
 )
 
