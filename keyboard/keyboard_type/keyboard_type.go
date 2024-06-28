@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	keysSupported     = []string{"ESCAPE", "ENTER", "TAB"}
-	regexCharsWithKey = regexp.MustCompile(fmt.Sprintf(`(?m:^(.*?)(\{(%s)\})?$)`, strings.Join(keysSupported, "|"))) // finds 0+ chars before 0|1 key
-	regexKeysFind     = regexp.MustCompile(fmt.Sprintf(`(\{(%s)\})`, strings.Join(keysSupported, "|")))              // finds supported keys: {TAB}, {ENTER}, etc.
+	keysSupported     = []string{"ALT-TAB", "ESCAPE", "ENTER", "TAB"}
+	regexCharsWithKey = regexp.MustCompile(fmt.Sprintf(`(?m:^(.*?)(\{(%s)\})?$)`, strings.Join(keysSupported, "|"))) // finds 0+ chars before one or zero special keys
+	regexKeysFind     = regexp.MustCompile(fmt.Sprintf(`(\{(%s)\})`, strings.Join(keysSupported, "|")))              // finds special keys: {TAB}, {ENTER}, etc.
 )
 
 // executes keyboard inputs
@@ -19,7 +19,7 @@ var (
 func Do(input string) {
 
 	// add newlines after each supported special key
-	// each line then contains 0+ chars to type and 0|1 special key to execute
+	// each line then contains 0+ chars to type and one or zero special keys to execute
 	inputNewLines := regexKeysFind.ReplaceAllString(input, "$1\n")
 
 	// find chars + special key for each line
@@ -38,7 +38,12 @@ func Do(input string) {
 		// special key
 		if len(matchesSub) > 3 {
 			// https://github.com/go-vgo/robotgo/blob/master/docs/keys.md#keys
+
 			switch matchesSub[3] {
+			case "ALT-TAB":
+				robotgo.KeyDown("alt")
+				robotgo.KeyTap("tab")
+				robotgo.KeyUp("alt")
 			case "ESCAPE":
 				robotgo.KeyTap("escape")
 			case "ENTER":

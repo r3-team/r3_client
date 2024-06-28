@@ -101,13 +101,13 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 					log.Error(logContext, "failed to open file", err)
 					continue
 				}
-			case "keystrokesDo":
-				var resPayload types.UnreqResponsePayloadKeystrokesDo
+			case "keystrokesRequested":
+				var resPayload string
 				if err := json.Unmarshal(resUnreq.Responses[0].Payload, &resPayload); err != nil {
 					log.Error(logContext, "failed to unmarshal unrequested response payload", err)
 					continue
 				}
-				keyboard_type.Do(resPayload.Strokes)
+				keyboard_type.Do(resPayload)
 			}
 			continue
 		}
@@ -120,7 +120,7 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 		}
 		transaction.Deregister(trans.TransactionNr)
 
-		// process authentication messages
+		// process authentication response
 		if isAuthTransaction(trans) {
 			var resPayload types.ResponsePayloadLogin
 			if err := json.Unmarshal(res.Responses[0].Payload, &resPayload); err != nil {
