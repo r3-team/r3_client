@@ -16,6 +16,7 @@ import (
 
 var (
 	logContext string = "hotkey"
+	starting   atomic.Bool
 	running    atomic.Bool
 )
 
@@ -28,8 +29,13 @@ func getFncForEvent(keys []string, instanceId uuid.UUID, ev types.Event) func(ho
 }
 
 func Start() {
-	running.Store(true)
-	defer running.Store(false)
+	if starting.Load() {
+		return
+	}
+	starting.Store(true)
+	StopIfRunning()
+
+	log.Info(logContext, "registering new global hooks")
 
 	// collect hotkey events for known instances
 	for instanceId, events := range event.Get() {
@@ -55,13 +61,21 @@ func Start() {
 		}
 	}
 
+	log.Info(logContext, "starting global hooks")
+
 	s := hook.Start()
+
+	starting.Store(false)
+	running.Store(true)
+	defer running.Store(false)
+
 	<-hook.Process(s)
 }
 
 func StopIfRunning() {
 	if running.Load() {
+		log.Info(logContext, "stopping global hooks")
 		hook.End()
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 500)
 	}
 }

@@ -171,7 +171,6 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 					event.ExecuteOn(instanceId, "onConnect")
 
 					// refresh keyboard listeners on change
-					keyboard_listen.StopIfRunning()
 					go keyboard_listen.Start()
 				}
 			}
