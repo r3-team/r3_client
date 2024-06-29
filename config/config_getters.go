@@ -8,11 +8,17 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-func GetAppVersion() string {
+func GetAppVersionBuild() int {
 	access_mx.Lock()
 	defer access_mx.Unlock()
 
-	return appVersion
+	return appVersionBuild
+}
+func GetAppVersionFull() string {
+	access_mx.Lock()
+	defer access_mx.Unlock()
+
+	return appVersionFull
 }
 func GetIsAuthenticated(instanceId uuid.UUID) bool {
 	access_mx.Lock()

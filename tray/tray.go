@@ -25,9 +25,11 @@ var (
 	logContext             = "systray"
 	title                  = "" // system tray title
 
-	isLoadingDown = false
-	isLoadingUp   = false
-	isFilledOnce  = false
+	isFilledOnce                = false
+	isLoadingDown               = false
+	isLoadingUp                 = false
+	isUpdateAvailable           = false
+	isUpdateAvailableInstanceId uuid.UUID
 
 	// captions
 	items = map[string]map[string]string{
@@ -75,6 +77,10 @@ var (
 			"de_de": "Beenden",
 			"en_us": "Quit",
 		},
+		"update": map[string]string{
+			"de_de": "Client-Update installieren",
+			"en_us": "Install client update",
+		},
 	}
 
 	// menu items
@@ -92,12 +98,13 @@ var (
 	mSsl         *systray.MenuItem
 	mSslVerify   *systray.MenuItem
 	mDebug       *systray.MenuItem
+	mUpdate      *systray.MenuItem
 	mQuit        *systray.MenuItem
 )
 
 func SetDefaults() {
 	access_mx.Lock()
-	title = fmt.Sprintf("%s (%s)", items["title"][config.GetLanguageCode()], config.GetAppVersion())
+	title = fmt.Sprintf("%s (%s)", items["title"][config.GetLanguageCode()], config.GetAppVersionFull())
 	systray.SetTitle("")
 	access_mx.Unlock()
 	updateIcon()
@@ -129,6 +136,15 @@ func FillMenu() {
 		} else {
 			systray.AddMenuItem(fmt.Sprintf("%s:%d %s", inst.HostName, inst.HostPort, items["conNo"][lang]), "")
 		}
+	}
+
+	// update available
+	mUpdate = systray.AddMenuItem("-", "")
+	mUpdate.Hide()
+	if isUpdateAvailable {
+		systray.AddSeparator()
+		mUpdate.SetTitle(items["update"][lang])
+		mUpdate.Show()
 	}
 
 	// last accessed files
@@ -266,6 +282,8 @@ func FillMenu() {
 				}
 			case <-mQuit.ClickedCh:
 				systray.Quit()
+			case <-mUpdate.ClickedCh:
+				// install update
 			}
 		}
 	}()

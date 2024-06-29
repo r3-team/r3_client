@@ -1,12 +1,24 @@
 package config
 
-import "github.com/gofrs/uuid"
+import (
+	"regexp"
+	"strconv"
 
-func SetAppVersion(v string) {
+	"github.com/gofrs/uuid"
+)
+
+func SetAppVersion(versionFull string) error {
 	access_mx.Lock()
 	defer access_mx.Unlock()
 
-	appVersion = v
+	build, err := strconv.Atoi(regexp.MustCompile(`^\d+\.\d+\.\d+\.`).ReplaceAllString(versionFull, ""))
+	if err != nil {
+		return err
+	}
+
+	appVersionFull = versionFull
+	appVersionBuild = build
+	return nil
 }
 func SetAutoStart(v bool) {
 	access_mx.Lock()

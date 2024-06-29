@@ -25,6 +25,18 @@ import (
 var (
 	read_mx    sync.RWMutex
 	logContext = "websocket"
+
+	// requests
+	reqClientAppGetBuild = types.Request{
+		Ressource: "clientApp",
+		Action:    "getBuild",
+		Payload:   nil,
+	}
+	reqClientEventGet = types.Request{
+		Ressource: "clientEvent",
+		Action:    "get",
+		Payload:   nil,
+	}
 )
 
 // connect to all known instances via websocket
@@ -86,7 +98,9 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 
 			switch resUnreq.Responses[0].Ressource {
 			case "clientEventsChanged", "reauthorized":
-				requestClientEvents(instanceId)
+				if err := send.Do(instanceId, []types.Request{reqClientEventGet}); err != nil {
+					log.Error(logContext, "failed to send websocket request", err)
+				}
 			case "fileRequested":
 				var resPayload types.UnreqResponsePayloadFileRequested
 				if err := json.Unmarshal(resUnreq.Responses[0].Payload, &resPayload); err != nil {
@@ -129,14 +143,28 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 			}
 			config.SetInstanceToken(instanceId, resPayload.Token)
 
-			// get client events after successful authentication
-			requestClientEvents(instanceId)
+			// get app build & client events after successful authentication
+			if err := send.Do(instanceId, []types.Request{reqClientAppGetBuild, reqClientEventGet}); err != nil {
+				log.Error(logContext, "failed to send websocket request", err)
+			}
 			continue
 		}
 
 		// process regular responses
 		for i, req := range trans.Requests {
 			switch req.Ressource {
+			case "clientApp":
+				switch req.Action {
+				case "getBuild":
+					var build int
+					if err := json.Unmarshal(res.Responses[i].Payload, &build); err != nil {
+						log.Error(logContext, "failed to unmarshal response payload", err)
+						continue
+					}
+					if build > config.GetAppVersionBuild() {
+						tray.SetUpdateAvailable(instanceId)
+					}
+				}
 			case "clientEvent":
 				switch req.Action {
 				case "get":
@@ -180,14 +208,4 @@ func handleReceived(instanceId uuid.UUID, conn *websocket.Conn) {
 
 func isAuthTransaction(t types.RequestTransaction) bool {
 	return len(t.Requests) == 1 && t.Requests[0].Ressource == "auth"
-}
-
-func requestClientEvents(instanceId uuid.UUID) {
-	if err := send.Do(instanceId, []types.Request{{
-		Ressource: "clientEvent",
-		Action:    "get",
-		Payload:   nil,
-	}}); err != nil {
-		log.Error(logContext, "failed to send websocket request", err)
-	}
 }
