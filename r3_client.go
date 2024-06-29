@@ -41,6 +41,7 @@ func main() {
 		onExit()
 	}()
 
+	// start systray
 	systray.Run(onReady, onExit)
 }
 func quitWithErr(message string, err error) {
@@ -49,6 +50,7 @@ func quitWithErr(message string, err error) {
 }
 
 func onReady() {
+
 	// get user home dir
 	userDir, err := os.UserHomeDir()
 	if err != nil {
@@ -86,15 +88,15 @@ func onReady() {
 	file.SetFilePathCache(filepath.Join(appDir, config.GetFileNameCache()))
 	log.SetFilePath(filepath.Join(appDir, config.GetFileNameLog()))
 
+	// install application, errors should not block execution
+	if err := install.App(); err != nil {
+		log.Error(logContext, "failed to install application", err)
+	}
+
 	// check whether another instance of the application is running
 	if err := lock.GetExclusive(); err != nil {
 		quitWithErr("failed to get exclusive access to lock file", err)
 		return
-	}
-
-	// install application, errors should not block execution
-	if err := install.App(); err != nil {
-		log.Error(logContext, "failed to install application", err)
 	}
 
 	// load config file

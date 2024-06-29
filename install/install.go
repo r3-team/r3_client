@@ -3,11 +3,14 @@ package install
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"r3_client/config"
 	"r3_client/log"
 	"r3_client/tools"
+
+	"github.com/go-vgo/robotgo"
 )
 
 var (
@@ -24,47 +27,67 @@ func App() error {
 	filePathBin := getFilePathBin()
 	filePathCnf := getFilePathCnf()
 
-	if filepath.Dir(filePathBinNow) != filepath.Dir(filePathBin) {
-		// app is started outside of its directory
+	if filepath.Dir(filePathBinNow) == filepath.Dir(filePathBin) {
+		// app runs inside its directory, everything is fine
+		return nil
+	}
 
-		// install app to application directory if not there already
-		exists, err := tools.Exists(filePathBin)
-		if err != nil {
-			return err
-		}
-		if !exists {
-			if err := copyApp(filePathBinNow, filePathBin); err != nil {
-				return err
-			}
+	// app is started outside of its directory
 
-		} else {
-			// overwrite app if hash changed
-			fileHashBinNow, err := tools.GetFileHash(filePathBinNow)
-			if err != nil {
-				return err
-			}
-			fileHashBin, err := tools.GetFileHash(filePathBin)
-			if err != nil {
-				return err
-			}
+	// kill currently running client
+	pidCurr := os.Getpid()
+	pidsAll, err := robotgo.FindIds("r3_client")
+	if err == nil {
+		for _, pid := range pidsAll {
+			if pid != pidCurr {
+				log.Info(logContext, fmt.Sprintf("found running client process (pid %d), killing it", pid))
 
-			if fileHashBinNow != fileHashBin {
-				if err := copyApp(filePathBinNow, filePathBin); err != nil {
-					return err
+				p, err := os.FindProcess(pid)
+				if err != nil {
+					log.Error(logContext, "failed to query existing client process", err)
+				}
+				if err := p.Kill(); err != nil {
+					log.Error(logContext, "failed to kill existing client process", err)
 				}
 			}
 		}
+	}
 
-		// copy config file, if none is set yet
-		exists, err = tools.Exists(filePathCnf)
+	// install app to its directory if not there already or outdated
+	exists, err := tools.Exists(filePathBin)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		if err := copyApp(filePathBinNow, filePathBin); err != nil {
+			return err
+		}
+	} else {
+		// compare old to new client hash
+		fileHashBinNow, err := tools.GetFileHash(filePathBinNow)
 		if err != nil {
 			return err
 		}
-		if exists {
-			return nil
+		fileHashBin, err := tools.GetFileHash(filePathBin)
+		if err != nil {
+			return err
 		}
 
-		// check: Directory of binary and user download directory (Windows/MacOS at least)
+		if fileHashBinNow != fileHashBin {
+			log.Info(logContext, "found outdated client version, overwriting it")
+			if err := copyApp(filePathBinNow, filePathBin); err != nil {
+				return err
+			}
+		}
+	}
+
+	// copy config file, if none is set
+	exists, err = tools.Exists(filePathCnf)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		// check: directory of binary and user download directory (Windows/MacOS at least)
 		paths := []string{
 			filepath.Join(filepath.Dir(filePathBinNow), config.GetFileName()),
 			filepath.Join(config.GetPathUser(), "Downloads", config.GetFileName()),
@@ -83,9 +106,19 @@ func App() error {
 			if err := config.ReadFile(); err != nil {
 				return err
 			}
+			// we only need to copy the config file once
 			break
 		}
 	}
+
+	// start app in target dir and then exit
+	log.Info(logContext, fmt.Sprintf("starting client in target directory '%s' and exiting", filePathBin))
+	cmd := exec.Command(filePathBin)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	os.Exit(0)
+
 	return nil
 }
 

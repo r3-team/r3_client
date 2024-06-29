@@ -12,7 +12,6 @@ var (
 	fileMaxSizeKb   = 10240 // log file max size before rotate in kilobytes
 	filePath        = ""    // log file path
 	filePathRotated string  // log file path, rotated
-	level           = 1     // log level (1 error, 2 warning, 3 info)
 )
 
 func SetDebug(v bool) {
@@ -21,9 +20,6 @@ func SetDebug(v bool) {
 func SetFilePath(v string) {
 	filePath = v
 	filePathRotated = fmt.Sprintf("%s.1", v)
-}
-func SetLevel(v int) {
-	level = v
 }
 func RotateIfNecessary() error {
 
