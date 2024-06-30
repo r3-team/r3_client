@@ -1,4 +1,4 @@
-package file
+package load
 
 import (
 	"bytes"
@@ -8,15 +8,11 @@ import (
 	"net/http"
 	"os"
 	"r3_client/config"
-	"r3_client/tray"
 	"time"
 )
 
-func download(url string, filePath string) error {
-	tray.SetLoadingDown(true)
-	defer tray.SetLoadingDown(false)
-
-	httpClient := getHttpClient(false)
+func Down(url string, filePath string) error {
+	httpClient := getHttpClient()
 	httpRes, err := httpClient.Get(url)
 	if err != nil {
 		return err
@@ -39,9 +35,7 @@ func download(url string, filePath string) error {
 	return nil
 }
 
-func upload(url string, params map[string]string, fileName string, filePath string) error {
-	tray.SetLoadingUp(true)
-	defer tray.SetLoadingUp(false)
+func Up(url string, params map[string]string, fileName string, filePath string) error {
 
 	// prepare request body
 	body := new(bytes.Buffer)
@@ -78,7 +72,7 @@ func upload(url string, params map[string]string, fileName string, filePath stri
 	}
 	req.Header.Add("Content-Type", writer.FormDataContentType())
 
-	httpClient := getHttpClient(false)
+	httpClient := getHttpClient()
 	httpRes, err := httpClient.Do(req)
 	if err != nil {
 		return err
@@ -89,7 +83,7 @@ func upload(url string, params map[string]string, fileName string, filePath stri
 	return nil
 }
 
-func getHttpClient(skipVerify bool) http.Client {
+func getHttpClient() http.Client {
 
 	tlsConfig := config.GetTlsConfig()
 	httpTransport := &http.Transport{

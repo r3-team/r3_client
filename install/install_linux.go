@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	binName = "r3_client.bin"
-	lnkName = "r3_client.desktop"
+	binName    = "r3_client.bin"
+	binNameNew = "r3_client_new.bin" // for updater
+	binNameOld = "r3_client_old.bin" // for updater
+	lnkName    = "r3_client.desktop"
 
 	desktopFile = `[Desktop Entry]
 Type=Application

@@ -33,53 +33,53 @@ var (
 
 	// captions
 	items = map[string]map[string]string{
-		"title": map[string]string{
+		"title": {
 			"de_de": "REI3 Client",
 			"en_us": "REI3 client",
 		},
-		"conNo": map[string]string{
+		"conNo": {
 			"de_de": "[nicht verbunden]",
 			"en_us": "[not connected]",
 		},
-		"conYes": map[string]string{
+		"conYes": {
 			"de_de": "[verbunden]",
 			"en_us": "[connected]",
 		},
-		"config": map[string]string{
+		"config": {
 			"de_de": "Konfigdatei öffnen",
 			"en_us": "Open config file",
 		},
-		"logs": map[string]string{
+		"logs": {
 			"de_de": "Logs öffnen",
 			"en_us": "Open logs",
 		},
-		"darkIcon": map[string]string{
+		"darkIcon": {
 			"de_de": "Dunkles Icon",
 			"en_us": "Dark icon",
 		},
-		"startup": map[string]string{
+		"startup": {
 			"de_de": "Autostart",
 			"en_us": "Auto start",
 		},
-		"ssl": map[string]string{
+		"ssl": {
 			"de_de": "SSL verwenden",
 			"en_us": "Use SSL",
 		},
-		"sslVerify": map[string]string{
+		"sslVerify": {
 			"de_de": "SSL verifizieren",
 			"en_us": "Verify SSL",
 		},
-		"debug": map[string]string{
+		"debug": {
 			"de_de": "Debug-Logging",
 			"en_us": "Debug logging",
 		},
-		"quit": map[string]string{
+		"quit": {
 			"de_de": "Beenden",
 			"en_us": "Quit",
 		},
-		"update": map[string]string{
-			"de_de": "Client-Update installieren",
-			"en_us": "Install client update",
+		"update": {
+			"de_de": "Update installieren",
+			"en_us": "Install update",
 		},
 	}
 
@@ -283,7 +283,10 @@ func FillMenu() {
 			case <-mQuit.ClickedCh:
 				systray.Quit()
 			case <-mUpdate.ClickedCh:
-				// install update
+				if err := install.Update(isUpdateAvailableInstanceId); err != nil {
+					log.Error(logContext, "failed to install update", err)
+					continue
+				}
 			}
 		}
 	}()

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 
 	"r3_client/config"
 	"r3_client/log"
@@ -117,7 +118,7 @@ func App() error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	os.Exit(0)
+	config.OsExit <- syscall.SIGTERM
 
 	return nil
 }

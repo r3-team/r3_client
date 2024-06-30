@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"r3_client/config"
+	"r3_client/file/load"
 	"r3_client/log"
 	"r3_client/tools"
+	"r3_client/tray"
 	"r3_client/types"
 	"sync"
 	"time"
@@ -168,6 +170,7 @@ func watcherReactToWrite(filePath string, fileId uuid.UUID, f types.File) {
 			log.Error(logContext, "failed to upload new file version", err)
 			break
 		}
+
 		log.Info(logContext, "uploaded new file version successfully")
 
 		// upload successful, update file hash
@@ -178,8 +181,13 @@ func watcherReactToWrite(filePath string, fileId uuid.UUID, f types.File) {
 }
 func watcherReleaseFile(fileId uuid.UUID) {
 	watcherFileIdsActive_mx.Lock()
-	if _, exists := watcherFileIdsActive[fileId]; exists {
-		delete(watcherFileIdsActive, fileId)
-	}
+	delete(watcherFileIdsActive, fileId)
 	watcherFileIdsActive_mx.Unlock()
+}
+
+func upload(url string, params map[string]string, fileName string, filePath string) error {
+	tray.SetLoadingUp(true)
+	defer tray.SetLoadingUp(false)
+
+	return load.Up(url, params, fileName, filePath)
 }

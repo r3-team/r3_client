@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	binName = "r3_client.exe"
-	lnkName = "r3_client.lnk"
+	binName    = "r3_client.exe"
+	binNameNew = "r3_client_new.exe" // for updater
+	binNameOld = "r3_client_old.exe" // for updater
+	lnkName    = "r3_client.lnk"
 
 	psScript = `$WshShell = New-Object -comObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut("%s")

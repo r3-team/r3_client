@@ -25,7 +25,6 @@ import (
 
 var (
 	logContext = "system"
-	osExit     = make(chan os.Signal)
 
 	// overwritten by build parameters
 	appVersion = "0.1.2.3"
@@ -35,15 +34,17 @@ func main() {
 	config.SetAppVersion(appVersion)
 
 	// listen to global shutdown channel
-	signal.Notify(osExit, syscall.SIGTERM)
+	signal.Notify(config.OsExit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 	go func() {
-		<-osExit
+		<-config.OsExit
 		onExit()
+		systray.Quit()
 	}()
 
 	// start systray
 	systray.Run(onReady, onExit)
 }
+
 func quitWithErr(message string, err error) {
 	log.Error(logContext, message, err)
 	systray.Quit()

@@ -11,9 +11,11 @@ import (
 )
 
 const (
-	binName = "r3_client"
-	lnkRef  = "com.lsw.r3_client"
-	lnkName = "com.lsw.r3_client.plist"
+	binName    = "r3_client"
+	binNameNew = "r3_client_new" // for updater
+	binNameOld = "r3_client_old" // for updater
+	lnkRef     = "com.lsw.r3_client"
+	lnkName    = "com.lsw.r3_client.plist"
 
 	desktopFile = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

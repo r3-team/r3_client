@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"r3_client/config"
+	"r3_client/file/load"
 	"r3_client/file/open"
 	"r3_client/log"
 	"r3_client/tools"
+	"r3_client/tray"
 	"r3_client/types"
 	"sync"
 
@@ -148,7 +150,6 @@ func Open(instanceId uuid.UUID, attributeId uuid.UUID, fileId uuid.UUID,
 		scheme, inst.HostName, inst.HostPort, fileName,
 		attributeId, fileId, config.GetAuthToken(instanceId))
 
-	log.Info(logContext, fmt.Sprintf("downloading file from '%s'", fileUrl))
 	if err := download(fileUrl, filePath); err != nil {
 		return err
 	}
@@ -159,4 +160,13 @@ func Open(instanceId uuid.UUID, attributeId uuid.UUID, fileId uuid.UUID,
 		return err
 	}
 	return open.WithLocalSystem(filePath, chooseApp)
+}
+
+func download(fileUrl string, filePath string) error {
+	log.Info(logContext, fmt.Sprintf("downloading file from '%s'", fileUrl))
+
+	tray.SetLoadingDown(true)
+	defer tray.SetLoadingDown(false)
+
+	return load.Down(fileUrl, filePath)
 }

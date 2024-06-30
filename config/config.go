@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	access_mx = &sync.Mutex{}
+	access_mx = &sync.RWMutex{}
 
 	appVersionFull  string                   // full version string, such as 1.1.2.1023
 	appVersionBuild int                      // version build, such as 1023
@@ -24,6 +24,7 @@ var (
 	fileNameLog     = "r3_client.log"        // log file name
 	pathApp         string                   // application path
 	pathUser        string                   // user home path
+	OsExit          = make(chan os.Signal)   // global exit channel
 
 	instanceIdMapToken = make(map[uuid.UUID]string) // map of instance JWTs, key: instance ID
 )
