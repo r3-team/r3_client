@@ -2,6 +2,7 @@ package install
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"r3_client/config"
@@ -21,28 +22,28 @@ func Update(instanceId uuid.UUID) error {
 		return fmt.Errorf("empty token")
 	}
 
-	os := ""
+	osEnv := ""
 	switch runtime.GOOS {
 	case "darwin":
 		switch runtime.GOARCH {
 		case "amd64":
-			os = "amd64_mac"
+			osEnv = "amd64_mac"
 		default:
 			return fmt.Errorf("unsupported GOARCH")
 		}
 	case "linux":
 		switch runtime.GOARCH {
 		case "amd64":
-			os = "amd64_linux"
+			osEnv = "amd64_linux"
 		case "arm64":
-			os = "arm64_linux"
+			osEnv = "arm64_linux"
 		default:
 			return fmt.Errorf("unsupported GOARCH")
 		}
 	case "windows":
 		switch runtime.GOARCH {
 		case "amd64":
-			os = "amd64_windows"
+			osEnv = "amd64_windows"
 		default:
 			return fmt.Errorf("unsupported GOARCH")
 		}
@@ -68,8 +69,11 @@ func Update(instanceId uuid.UUID) error {
 
 	log.Info(logContext, fmt.Sprintf("downloading update to '%s'", fileClientNew))
 
-	url := fmt.Sprintf("%s://%s:%d/client/download/?token=%s&os=%s", scheme, inst.HostName, inst.HostPort, token, os)
+	url := fmt.Sprintf("%s://%s:%d/client/download/?token=%s&os=%s", scheme, inst.HostName, inst.HostPort, token, osEnv)
 	if err := load.Down(url, fileClientNew); err != nil {
+		return err
+	}
+	if err := os.Chmod(fileClientNew, 0744); err != nil {
 		return err
 	}
 
