@@ -19,12 +19,11 @@ type FilesSaved struct {
 
 // configuration file
 type Instance struct {
-	DeviceName string  `json:"deviceName"`
-	Events     []Event `json:"events"`
-	HostName   string  `json:"hostName"`
-	HostPort   int     `json:"hostPort"`
-	LoginId    int64   `json:"loginId"`
-	TokenFixed string  `json:"tokenFixed"`
+	DeviceName string `json:"deviceName"`
+	HostName   string `json:"hostName"`
+	HostPort   int    `json:"hostPort"`
+	LoginId    int64  `json:"loginId"`
+	TokenFixed string `json:"tokenFixed"`
 }
 type ConfigFile struct {
 	AutoStart    bool                   `json:"autoStart"`
