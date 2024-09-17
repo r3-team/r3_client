@@ -82,7 +82,6 @@ func WatcherStop() {
 		if err := watcher.Close(); err != nil {
 			log.Error(logContext, "failed to close file watcher", err)
 		}
-		watcher = nil
 	}
 }
 

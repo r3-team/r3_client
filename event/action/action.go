@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/user"
 	"r3_client/types"
-	"r3_client/websocket/send"
+	"r3_client/ws/ws_connect"
 	"strings"
 
 	"github.com/go-vgo/robotgo"
@@ -73,7 +73,7 @@ func Do(instanceId uuid.UUID, clientEvent types.Event) error {
 		return err
 	}
 
-	return send.Do(instanceId, []types.Request{{
+	return ws_connect.SendToInstance(instanceId, []types.Request{{
 		Ressource: "clientEvent",
 		Action:    "exec",
 		Payload:   payloadJson,

@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/gofrs/uuid"
+	"github.com/gorilla/websocket"
 )
 
 // handled files
@@ -34,4 +35,13 @@ type ConfigFile struct {
 	LanguageCode string                 `json:"languageCode"`
 	Ssl          bool                   `json:"ssl"`
 	SslVerify    bool                   `json:"sslVerify"`
+}
+
+// websocket
+type WsCon struct {
+	ChanClose  chan error
+	ChanRead   chan []byte
+	ChanWrite  chan []Request
+	InstanceId uuid.UUID
+	Ws         *websocket.Conn
 }

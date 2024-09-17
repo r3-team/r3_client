@@ -13,12 +13,11 @@ import (
 	"r3_client/file"
 	"r3_client/install"
 	"r3_client/job"
-	"r3_client/keyboard/keyboard_listen"
 	"r3_client/lock"
 	"r3_client/log"
 	"r3_client/tools"
 	"r3_client/tray"
-	"r3_client/websocket/connection"
+	"r3_client/ws"
 
 	"fyne.io/systray"
 )
@@ -37,7 +36,6 @@ func main() {
 	signal.Notify(config.OsExit, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 	go func() {
 		<-config.OsExit
-		onExit()
 		systray.Quit()
 	}()
 
@@ -141,6 +139,5 @@ func onExit() {
 	lock.Release()
 	job.Stop()
 	file.WatcherStop()
-	keyboard_listen.StopIfRunning()
-	connection.DisconnectAll()
+	ws.DisconnectAll()
 }

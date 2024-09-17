@@ -1,4 +1,4 @@
-package transaction
+package ws_trans
 
 import (
 	"fmt"
@@ -25,6 +25,7 @@ func Deregister(transNr uint64) {
 
 	delete(transactionNrMap, transNr)
 }
+
 func Register(requests []types.Request) (types.RequestTransaction, error) {
 	trans := types.RequestTransaction{
 		Requests: requests,
