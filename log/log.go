@@ -3,19 +3,20 @@ package log
 import (
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"r3_client/tools"
 )
 
 var (
-	debug           = false
+	debug           atomic.Bool
 	fileMaxSizeKb   = 10240 // log file max size before rotate in kilobytes
 	filePath        = ""    // log file path
 	filePathRotated string  // log file path, rotated
 )
 
 func SetDebug(v bool) {
-	debug = v
+	debug.Store(v)
 }
 func SetFilePath(v string) {
 	filePath = v
@@ -61,7 +62,7 @@ func Error(context string, message string, err error) {
 
 func write(levelRequested int, context string, message string, err error, writeToFile bool) {
 
-	if levelRequested != 1 && !debug {
+	if levelRequested != 1 && !debug.Load() {
 		return
 	}
 
