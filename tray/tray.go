@@ -12,6 +12,7 @@ import (
 	"r3_client/log"
 	"r3_client/types"
 	"sync"
+	"syscall"
 
 	"fyne.io/systray"
 	"github.com/gofrs/uuid"
@@ -77,6 +78,14 @@ var (
 			"de_de": "Beenden",
 			"en_us": "Quit",
 		},
+		"uninstall0": {
+			"de_de": "Deinstallieren",
+			"en_us": "Uninstall",
+		},
+		"uninstall1": {
+			"de_de": "REI3 Client deinstallieren?",
+			"en_us": "Uninstall REI3 client?",
+		},
 		"update": {
 			"de_de": "Update installieren",
 			"en_us": "Install update",
@@ -99,6 +108,8 @@ var (
 	mSslVerify   *systray.MenuItem
 	mDebug       *systray.MenuItem
 	mUpdate      *systray.MenuItem
+	mUninstall0  *systray.MenuItem
+	mUninstall1  *systray.MenuItem
 	mQuit        *systray.MenuItem
 )
 
@@ -184,6 +195,11 @@ func FillMenu() {
 	systray.AddSeparator()
 	mConfig = systray.AddMenuItem(items["config"][lang], "")
 	mLogs = systray.AddMenuItem(items["logs"][lang], "")
+
+	// uninstall
+	systray.AddSeparator()
+	mUninstall0 = systray.AddMenuItem(items["uninstall0"][lang], "")
+	mUninstall1 = mUninstall0.AddSubMenuItem(items["uninstall1"][lang], "")
 
 	// toggle actions
 	systray.AddSeparator()
@@ -280,13 +296,17 @@ func FillMenu() {
 				} else {
 					mDebug.Uncheck()
 				}
-			case <-mQuit.ClickedCh:
-				systray.Quit()
 			case <-mUpdate.ClickedCh:
 				if err := install.Update(isUpdateAvailableInstanceId); err != nil {
 					log.Error(logContext, "failed to install update", err)
-					continue
 				}
+			case <-mUninstall1.ClickedCh:
+				if err := install.Remove(); err != nil {
+					log.Error(logContext, "failed to uninstall", err)
+				}
+				config.OsExit <- syscall.SIGTERM
+			case <-mQuit.ClickedCh:
+				systray.Quit()
 			}
 		}
 	}()
