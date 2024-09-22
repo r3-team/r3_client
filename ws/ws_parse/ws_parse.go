@@ -13,6 +13,7 @@ import (
 	"r3_client/tray"
 	"r3_client/types"
 	"r3_client/ws/ws_trans"
+	"strings"
 
 	"github.com/gofrs/uuid"
 )
@@ -34,7 +35,12 @@ var (
 )
 
 func Do(instanceId uuid.UUID, message []byte, chanWrite chan []types.Request) error {
-	log.Info(logContext, fmt.Sprintf("received: %s", message))
+
+	if strings.Contains(string(message), "keystrokesRequested") {
+		log.Info(logContext, "received: A MESSAGE CONTAINING KEYSTROKE COMMANDS, FOR SECURITY REASONS THESE ARE NOT LOGGED")
+	} else {
+		log.Info(logContext, fmt.Sprintf("received: %s", message))
+	}
 
 	sendWhenFree := func(requests []types.Request) {
 		// write channel is blocked until read is done
