@@ -12,6 +12,7 @@ import (
 	"r3_client/log"
 	"r3_client/types"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	"fyne.io/systray"
@@ -26,9 +27,11 @@ var (
 	logContext             = "systray"
 	title                  = "" // system tray title
 
+	isActionDone  atomic.Bool
+	isLoadingDown atomic.Bool
+	isLoadingUp   atomic.Bool
+
 	isFilledOnce                = false
-	isLoadingDown               = false
-	isLoadingUp                 = false
 	isUpdateAvailable           = false
 	isUpdateAvailableInstanceId uuid.UUID
 
@@ -341,7 +344,7 @@ func updateIcon() {
 	}
 
 	// 2nd prio: uploading
-	if isLoadingUp {
+	if isLoadingUp.Load() {
 		if darkIcon {
 			systray.SetIcon(dark.Upload)
 		} else {
@@ -351,11 +354,21 @@ func updateIcon() {
 	}
 
 	// 3rd prio: downloading
-	if isLoadingDown {
+	if isLoadingDown.Load() {
 		if darkIcon {
 			systray.SetIcon(dark.Download)
 		} else {
 			systray.SetIcon(icon.Download)
+		}
+		return
+	}
+
+	// 4th prio: action done
+	if isActionDone.Load() {
+		if darkIcon {
+			systray.SetIcon(dark.Load)
+		} else {
+			systray.SetIcon(icon.Load)
 		}
 		return
 	}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"r3_client/tray"
 	"r3_client/types"
 	"r3_client/ws/ws_connect"
 	"strings"
@@ -73,9 +74,14 @@ func Do(instanceId uuid.UUID, clientEvent types.Event) error {
 		return err
 	}
 
-	return ws_connect.SendToInstance(instanceId, []types.Request{{
+	if err := ws_connect.SendToInstance(instanceId, []types.Request{{
 		Ressource: "clientEvent",
 		Action:    "exec",
 		Payload:   payloadJson,
-	}})
+	}}); err != nil {
+		return err
+	}
+
+	tray.SetActionDone(true)
+	return nil
 }

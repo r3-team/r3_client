@@ -2,10 +2,24 @@ package tray
 
 import (
 	"r3_client/types"
+	"time"
 
 	"github.com/gofrs/uuid"
 )
 
+func SetActionDone(v bool) {
+	isActionDone.Store(v)
+	updateIcon()
+
+	if v {
+		go func() {
+			// state "action done" is just shown temporarily
+			time.Sleep(time.Second * 3)
+			isActionDone.Store(false)
+			updateIcon()
+		}()
+	}
+}
 func SetConnected(instanceId uuid.UUID, v bool) {
 	access_mx.Lock()
 	connected, exists := instanceIdMapConnected[instanceId]
@@ -25,15 +39,11 @@ func SetFiles(files []types.File) {
 	FillMenu()
 }
 func SetLoadingDown(v bool) {
-	access_mx.Lock()
-	isLoadingDown = v
-	access_mx.Unlock()
+	isLoadingDown.Store(v)
 	updateIcon()
 }
 func SetLoadingUp(v bool) {
-	access_mx.Lock()
-	isLoadingUp = v
-	access_mx.Unlock()
+	isLoadingUp.Store(v)
 	updateIcon()
 }
 func SetUpdateAvailable(instanceId uuid.UUID) {
