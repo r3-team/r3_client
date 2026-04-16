@@ -1,6 +1,6 @@
 module r3_client
 
-go 1.18
+go 1.25.0
 
 require (
 	fyne.io/systray v1.10.0
@@ -8,7 +8,7 @@ require (
 	github.com/go-vgo/robotgo v0.110.2
 	github.com/gofrs/uuid v4.2.0+incompatible
 	github.com/gorilla/websocket v1.5.0
-	github.com/jackc/pgx/v5 v5.6.0
+	github.com/jackc/pgx/v5 v5.9.0
 	github.com/robotn/gohook v0.41.0
 )
 
